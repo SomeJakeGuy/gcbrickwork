@@ -15,7 +15,7 @@ Allows you to read, write, and update data via BytesIO streams, which can then b
 These types of files typically contain various data about a given actor / character in their respective game.  
 The actor / character it relates to is typically indicated by its file name.  
 The structure of these files break down in the following way:
-* First 4 bytes indicate the number of entries that exists witin the file.
+* First 4 bytes indicate the number of entries that exists within the file.
 * For each entry / field:
   * The first 2 bytes of an entry indicate some sort of hash.
   * The next 2 bytes indicate how long the string name is of the field / entry.
