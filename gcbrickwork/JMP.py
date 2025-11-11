@@ -61,10 +61,11 @@ class JMP:
         It should be noted that there will be extra bytes typically at the end of a jmp file, which are padded with "@".
             These paddings can be anywhere from 1 to 15 bytes, up until the total bytes is divisible by 16.
         """
-        self.data.seek(0)
-        original_file_size: int = len(self.data.getvalue())
+        self.data.seek(0, 2)
+        original_file_size: int = self.data.tell()
 
         # Get important file bytes
+        self.data.seek(0)
         data_entry_count: int = int(struct.unpack(">i", self.data.read(4))[0])
         field_count: int = int(struct.unpack(">i", self.data.read(4))[0])
         header_block_size: int = int(struct.unpack(">I", self.data.read(4))[0])
@@ -72,7 +73,8 @@ class JMP:
 
         # Load all headers of this file
         header_block_bytes: bytes = self.data.read(header_block_size - 16) # Field details start after the above 16 bytes
-        if len(header_block_bytes) % JMP_HEADER_SIZE != 0 or not (len(header_block_bytes) / JMP_HEADER_SIZE) == field_count:
+        if (len(header_block_bytes) % JMP_HEADER_SIZE != 0 or not (len(header_block_bytes) / JMP_HEADER_SIZE) ==
+            field_count or header_block_size > original_file_size):
             raise Exception("When trying to read the header block of the JMP file, the size was bigger than expected " +
                 "and could not be parsed properly.")
         self.data.seek(16) # Start after the previous important 16 bytes.
