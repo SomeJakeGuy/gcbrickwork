@@ -68,17 +68,18 @@ class JMP:
         data_entry_count: int = int(struct.unpack(">i", self.data.read(4))[0])
         field_count: int = int(struct.unpack(">i", self.data.read(4))[0])
         header_block_size: int = int(struct.unpack(">I", self.data.read(4))[0])
-        data_entries_block_size: int = int(struct.unpack(">I", self.data.read(4))[0])
+        single_data_entry_size: int = int(struct.unpack(">I", self.data.read(4))[0])
 
         # Load all headers of this file
         header_block_bytes: bytes = self.data.read(header_block_size - 16) # Field details start after the above 16 bytes
-        if header_block_bytes % JMP_HEADER_SIZE != 0 or (header_block_size / JMP_HEADER_SIZE) == field_count:
+        if len(header_block_bytes) % JMP_HEADER_SIZE != 0 or not (len(header_block_bytes) / JMP_HEADER_SIZE) == field_count:
             raise Exception("When trying to read the header block of the JMP file, the size was bigger than expected " +
                 "and could not be parsed properly.")
+        self.data.seek(16) # Start after the previous important 16 bytes.
         jmp_headers: list[JMPFieldHeader] = self._load_headers(field_count)
 
         # Load all data entries / rows of this table.
-        self._load_entries(data_entry_count, jmp_headers)
+        self._load_entries(data_entry_count, single_data_entry_size, jmp_headers)
 
 
     def _load_headers(self, field_count: int) -> list[JMPFieldHeader]:
@@ -86,22 +87,22 @@ class JMP:
         Gets the list of all JMP headers that are available in this file.
         """
         field_headers: list[JMPFieldHeader] = []
-        self.data.seek(17) # One byte more than the previous 16 important bytes
 
         for _ in range(field_count):
             field_headers.append(JMPFieldHeader(self.data.read(JMP_HEADER_SIZE)))
         return field_headers
 
-    def _load_entries(self, data_entry_count: int, field_list: list[JMPFieldHeader]):
+    def _load_entries(self, data_entry_count: int, data_entry_size: int, field_list: list[JMPFieldHeader]):
         """
         Loads all the rows one by one and populates each column's value per row.
         """
 
         for current_entry in range(data_entry_count):
             new_entry: dict[JMPFieldHeader, int | str | float] = {}
+            data_entry_start: int = current_entry * data_entry_size
 
             for jmp_header in field_list:
-                self.data.seek(jmp_header.field_start_bit)
+                self.data.seek(data_entry_start + jmp_header.field_start_bit)
 
                 match jmp_header.field_data_type:
                     case JMPType.Int:
