@@ -65,42 +65,21 @@ class PRMFieldEntry:
         Based on that data type, get the corresponding value and converted type
             Int/Floats are NOT converted due to the fact there is NO indicator to know when to use either.
     """
-    _field_hash: int = 0
-    _field_name: str = None
-    _field_name_size: int = 0
-    _field_type: PRMType = None
+    field_hash: int = 0
+    field_name: str = None
+    field_name_size: int = 0
+    field_type: PRMType = None
     field_value: bytes | int | PRMColor | PRMVector = None
 
     def __init__(self, entry_hash: int, name: str, name_size: int, entry_type: PRMType, value: bytes | int | PRMColor | PRMVector):
-        """
-        Once defined, types should not change and ideally neither should hashes / names. If a field needs to change,
-            it would be more beneficial to create a new PRMFieldEntry and insert it accordingly (otherwise type changes
-            would cause files to improperly create, etc.)
-        """
-        self._field_hash = entry_hash
-        self._field_name = name
-        self._field_name_size = name_size
-        self._field_type = entry_type
+        self.field_hash = entry_hash
+        self.field_name = name
+        self.field_name_size = name_size
+        self.field_type = entry_type
         self.field_value = value
 
     def __str__(self):
-        return f"Field Hash: {str(self._field_hash)}; Name: {self._field_name}; Value: {str(self.field_value)}"
-
-    @property
-    def field_name_size(self):
-        return self._field_name_size
-
-    @property
-    def field_type(self):
-        return self._field_type
-
-    @property
-    def field_name(self):
-        return self._field_name
-
-    @property
-    def field_hash(self):
-        return self._field_hash
+        return f"Field Hash: {str(self.field_hash)}; Name: {self.field_name}; Value: {str(self.field_value)}"
 
 
 class PRM:
