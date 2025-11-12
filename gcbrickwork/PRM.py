@@ -122,14 +122,14 @@ class PRM:
                     entry_value: int = read_u16(self.data, current_offset)
                 case PRMType.Vector:
                     float_one: float = read_float(self.data, current_offset)
-                    float_two: float = read_float(self.data, current_offset+4)
-                    float_three: float = read_float(self.data, current_offset+8)
+                    float_two: float = read_float(self.data, current_offset + 4)
+                    float_three: float = read_float(self.data, current_offset + 8)
                     entry_value: PRMVector = PRMVector(float_one, float_two, float_three)
                 case PRMType.Color:
                     color_one: int = read_u32(self.data, current_offset)
-                    color_two: int = read_u32(self.data, current_offset+4)
-                    color_three: int = read_u32(self.data, current_offset+8)
-                    color_four: int = read_u32(self.data, current_offset+12)
+                    color_two: int = read_u32(self.data, current_offset + 4)
+                    color_three: int = read_u32(self.data, current_offset + 8)
+                    color_four: int = read_u32(self.data, current_offset + 12)
                     entry_value: PRMColor = PRMColor(color_one, color_two, color_three, color_four)
                 case _:
                     raise ValueError("Unimplemented PRM type detected: " + str(entry_size))
@@ -164,14 +164,14 @@ class PRM:
                 case PRMType.Vector:
                     val: PRMVector = prm_entry.field_value
                     write_float(self.data, current_offset, val.float_one)
-                    write_float(self.data, current_offset+4, val.float_two)
-                    write_float(self.data, current_offset+8, val.float_three)
+                    write_float(self.data, current_offset + 4, val.float_two)
+                    write_float(self.data, current_offset + 8, val.float_three)
                 case PRMType.Color:
                     val: PRMColor = prm_entry.field_value
                     write_u32(self.data, current_offset, val.red_value)
-                    write_u32(self.data, current_offset+4, val.green_value)
-                    write_u32(self.data, current_offset+8, val.blue_value)
-                    write_u32(self.data, current_offset+12, val.opacity)
+                    write_u32(self.data, current_offset + 4, val.green_value)
+                    write_u32(self.data, current_offset + 8, val.blue_value)
+                    write_u32(self.data, current_offset + 12, val.opacity)
             current_offset+=prm_entry.field_type
 
     def get_entry(self, field_name: str) -> PRMFieldEntry:
