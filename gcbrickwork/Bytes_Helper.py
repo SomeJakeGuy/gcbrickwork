@@ -8,42 +8,42 @@ class ByteHelperError(Exception):
 
 
 def read_u8(data: BytesIO, offset: int) -> int:
-    data_length = data.seek(0, 2)
+    data_length = data.seek(offset, 2)
     length = 1
     if offset + length > data_length:
-        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+        raise ByteHelperError(f"Offset {str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
     data.seek(offset)
     return struct.unpack(">B", data.read(length))[0]
 
 def read_u16(data: BytesIO, offset: int) -> int:
-    data_length = data.seek(0, 2)
+    data_length = data.seek(offset, 2)
     length = 2
     if offset + length > data_length:
-        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+        raise ByteHelperError(f"Offset {str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
     data.seek(offset)
     return struct.unpack(">H", data.read(length))[0]
 
 def read_u32(data: BytesIO, offset: int) -> int:
-    data_length = data.seek(0, 2)
+    data_length = data.seek(offset, 2)
     length = 4
     if offset + length > data_length:
-        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+        raise ByteHelperError(f"Offset {str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
     data.seek(offset)
     return struct.unpack(">I", data.read(length))[0]
 
 def read_s32(data: BytesIO, offset: int) -> int:
-    data_length = data.seek(0, 2)
+    data_length = data.seek(offset, 2)
     length = 4
     if offset + length > data_length:
-        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+        raise ByteHelperError(f"Offset {str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
     data.seek(offset)
     return struct.unpack(">i", data.read(length))[0]
 
 def read_float(data: BytesIO, offset: int) -> int:
-    data_length = data.seek(0, 2)
+    data_length = data.seek(offset, 2)
     length = 4
     if offset + length > data_length:
-        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+        raise ByteHelperError(f"Offset {str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
     data.seek(offset)
     return struct.unpack(">f", data.read(length))[0]
 
@@ -74,13 +74,13 @@ def write_float(data: BytesIO, offset: int, new_value: float):
     data.write(new_bytes)
 
 
-def read_str_until_null_character(data: BytesIO, offset: int) -> str:
-    data_length = data.seek(0, 2)
-    if offset > data_length:
-        raise ByteHelperError(f"Offset 0x{str(offset)} is longer than the data size {str(data_length)}.")
+def read_str_until_null_character(data: BytesIO, offset: int, max_length: int) -> str:
+    data_length = data.seek(offset, 2)
+    if (offset + max_length) > data_length:
+        raise ByteHelperError(f"Offset {str(offset)} + Length {str(max_length)} is longer than the data size {str(data_length)}.")
 
     temp_offset = offset
-    while temp_offset < data_length:
+    while temp_offset < max_length:
         data.seek(temp_offset)
         char = data.read(1)
         if char == b"\0":
