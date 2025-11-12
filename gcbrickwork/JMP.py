@@ -51,7 +51,7 @@ class JMP:
     data: BytesIO = None
     data_entries: list[dict[JMPFieldHeader, int | str | float]] = []
     fields: list[JMPFieldHeader] = []
-    _single_entry_size: int = 0
+    single_entry_size: int = 0
 
     def __init__(self, jmp_data: BytesIO):
         self.data = jmp_data
@@ -71,7 +71,7 @@ class JMP:
         data_entry_count: int = int(struct.unpack(">i", self.data.read(4))[0])
         field_count: int = int(struct.unpack(">i", self.data.read(4))[0])
         header_block_size: int = int(struct.unpack(">I", self.data.read(4))[0])
-        self._single_entry_size: int = int(struct.unpack(">I", self.data.read(4))[0])
+        self.single_entry_size: int = int(struct.unpack(">I", self.data.read(4))[0])
 
         # Load all headers of this file
         header_block_bytes: bytes = self.data.read(header_block_size - 16) # Field details start after the above 16 bytes
@@ -83,7 +83,7 @@ class JMP:
         self.fields = self._load_headers(field_count)
 
         # Load all data entries / rows of this table.
-        self._load_entries(data_entry_count, self._single_entry_size, header_block_size, self.fields)
+        self._load_entries(data_entry_count, self.single_entry_size, header_block_size, self.fields)
 
     def _load_headers(self, field_count: int) -> list[JMPFieldHeader]:
         """
@@ -141,7 +141,7 @@ class JMP:
         local_data = BytesIO()
         new_header_size: int = len(self.fields)*JMP_HEADER_SIZE+16
         local_data.write(struct.pack(">I I", len(self.data_entries), len(self.fields)))
-        local_data.write(struct.pack(">I I", new_header_size, self._single_entry_size))
+        local_data.write(struct.pack(">I I", new_header_size, self.single_entry_size))
 
         # Add the individual headers to complete the header block
         for jmp_header in self.fields:
@@ -151,7 +151,7 @@ class JMP:
         # Add the all the data entry lines. Ints have special treatment consideration as they have a bitmask, so
         # the original data must be read to ensure the unrelated bits are preserved.
         for line_entry in self.data_entries:
-            current_offset: int = new_header_size + (self.data_entries.index(line_entry) + self._single_entry_size)
+            current_offset: int = new_header_size + (self.data_entries.index(line_entry) + self.single_entry_size)
             for key, val in line_entry.items():
                 local_data.seek(current_offset + key.field_start_bit)
                 match key.field_data_type:
