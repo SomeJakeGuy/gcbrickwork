@@ -3,6 +3,7 @@
 from io import BytesIO
 import struct
 
+
 class ByteHelperError(Exception):
     pass
 
