@@ -91,14 +91,14 @@ def read_str_until_null_character(data: BytesIO, offset: int, max_length: int) -
     string = data.read(temp_offset-offset).decode("shift_jis")
     return string
 
-def write_str(data: BytesIO, offset: int, new_string: str, max_length: int):
+def write_str(data: BytesIO, offset: int, new_string: str, max_length: int, padding_byte: bytes = b"\0"):
     encoded_string = new_string.encode("shift_jis")
     str_len = len(encoded_string)
     if str_len >= max_length:
         raise Exception(f"String \"{new_string}\" is too long (max length: {str(max_length)})")
 
     padding_length = max_length - str_len
-    new_value = encoded_string + (b"\0" * padding_length)
+    new_value = encoded_string + (padding_byte * padding_length)
 
     data.seek(offset)
     data.write(new_value)

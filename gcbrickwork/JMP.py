@@ -181,5 +181,5 @@ class JMP:
         curr_length = local_data.seek(0, 2)
         local_data.seek(curr_length)
         if curr_length % 32 > 0:
-            write_str(local_data, curr_length, "@" * (curr_length % 32), curr_length % 32)
+            write_str(local_data, curr_length, "", curr_length % 32, "@".encode("shift_jis"))
         self.data = local_data
