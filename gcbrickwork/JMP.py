@@ -5,6 +5,7 @@ from io import BytesIO
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
+
 class JMPType(IntEnum):
     Int = 0
     Str = 1
