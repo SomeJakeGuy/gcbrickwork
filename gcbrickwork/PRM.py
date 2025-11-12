@@ -68,21 +68,26 @@ class PRMFieldEntry:
     field_hash: int = 0
     field_name: str = None
     _field_name_size: int = 0
-    field_type: PRMType = None
+    _field_type: PRMType = None
     field_value: bytes | int | PRMColor | PRMVector = None
 
     def __init__(self, entry_hash: int, name: str, name_size: int, entry_type: PRMType, value: bytes | int | PRMColor | PRMVector):
         self.field_hash = entry_hash
         self.field_name = name
         self._field_name_size = name_size
-        self.field_type = entry_type
+        self._field_type = entry_type
         self.field_value = value
 
     def __str__(self):
         return f"Field Hash: {str(self.field_hash)}; Field Name: {self.field_name}; Field Value: {str(self.field_value)}"
 
-    def get_field_name_size(self):
+    @property
+    def field_name_size(self):
         return self._field_name_size
+
+    @property
+    def field_type(self):
+        return self._field_type
 
 
 class PRM:
@@ -153,10 +158,10 @@ class PRM:
         for prm_entry in self.data_entries:
             write_u16(self.data, current_offset, prm_entry.field_hash)
             current_offset += 2
-            write_u16(self.data, current_offset, prm_entry.get_field_name_size())
+            write_u16(self.data, current_offset, prm_entry.field_name_size)
             current_offset += 2
-            write_str(self.data, current_offset, prm_entry.field_name, prm_entry.get_field_name_size())
-            current_offset += prm_entry.get_field_name_size()
+            write_str(self.data, current_offset, prm_entry.field_name, prm_entry.field_name_size)
+            current_offset += prm_entry.field_name_size
             match prm_entry.field_type:
                 case PRMType.Byte:
                     write_u8(self.data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
