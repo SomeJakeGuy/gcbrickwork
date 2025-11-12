@@ -2,7 +2,6 @@ import struct
 from enum import IntEnum
 from io import BytesIO
 
-
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
@@ -61,8 +60,7 @@ class JMP:
         It should be noted that there will be extra bytes typically at the end of a jmp file, which are padded with "@".
             These paddings can be anywhere from 1 to 15 bytes, up until the total bytes is divisible by 16.
         """
-        self.data.seek(0, 2)
-        original_file_size: int = self.data.tell()
+        original_file_size = self.data.seek(0, 2)
 
         # Get important file bytes
         self.data.seek(0)
