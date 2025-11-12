@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 
-from Bytes_Helper import *
+from .Bytes_Helper import *
 
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32

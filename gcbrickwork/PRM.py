@@ -2,7 +2,7 @@ import io
 from dataclasses import dataclass
 from enum import IntEnum
 
-from Bytes_Helper import *
+from .Bytes_Helper import *
 
 
 class PRMType(IntEnum):
