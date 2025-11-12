@@ -108,11 +108,9 @@ class PRM:
 
         for entry_num in range(num_of_entries):
             entry_hash: int = read_u16(self.data, current_offset)
-            current_offset += 2
-            entry_name_length: int = read_u16(self.data, current_offset)
-            current_offset += 2
-            entry_name: str = read_str_until_null_character(self.data, current_offset, entry_name_length)
-            current_offset += entry_name_length
+            entry_name_length: int = read_u16(self.data, current_offset + 2)
+            entry_name: str = read_str_until_null_character(self.data, current_offset + 4, entry_name_length)
+            current_offset += entry_name_length + 4
 
             entry_size: int = read_u32(self.data, current_offset)
             match entry_size:
@@ -149,11 +147,9 @@ class PRM:
 
         for prm_entry in self.data_entries:
             write_u16(self.data, current_offset, prm_entry.field_hash)
-            current_offset += 2
-            write_u16(self.data, current_offset, prm_entry.field_name_size)
-            current_offset += 2
-            write_str(self.data, current_offset, prm_entry.field_name, prm_entry.field_name_size)
-            current_offset += prm_entry.field_name_size
+            write_u16(self.data, current_offset + 2, prm_entry.field_name_size)
+            write_str(self.data, current_offset + 4, prm_entry.field_name, prm_entry.field_name_size)
+            current_offset += prm_entry.field_name_size + 4
             match prm_entry.field_type:
                 case PRMType.Byte:
                     write_u8(self.data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
