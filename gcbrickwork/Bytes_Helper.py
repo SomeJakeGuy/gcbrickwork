@@ -1,0 +1,104 @@
+# Based on some functions that were created in: https://github.com/LagoLunatic/gclib/blob/master/gclib/fs_helpers.py
+
+from io import BytesIO
+import struct
+
+class ByteHelperError(Exception):
+    pass
+
+
+def read_u8(data: BytesIO, offset: int) -> int:
+    data_length = data.seek(0, 2)
+    length = 1
+    if offset + length > data_length:
+        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+    data.seek(offset)
+    return struct.unpack(">B", data.read(length))[0]
+
+def read_u16(data: BytesIO, offset: int) -> int:
+    data_length = data.seek(0, 2)
+    length = 2
+    if offset + length > data_length:
+        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+    data.seek(offset)
+    return struct.unpack(">H", data.read(length))[0]
+
+def read_u32(data: BytesIO, offset: int) -> int:
+    data_length = data.seek(0, 2)
+    length = 4
+    if offset + length > data_length:
+        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+    data.seek(offset)
+    return struct.unpack(">I", data.read(length))[0]
+
+def read_s32(data: BytesIO, offset: int) -> int:
+    data_length = data.seek(0, 2)
+    length = 4
+    if offset + length > data_length:
+        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+    data.seek(offset)
+    return struct.unpack(">i", data.read(length))[0]
+
+def read_float(data: BytesIO, offset: int) -> int:
+    data_length = data.seek(0, 2)
+    length = 4
+    if offset + length > data_length:
+        raise ByteHelperError(f"Offset 0x{str(offset)} + Length {str(length)} is longer than the data size {str(data_length)}.")
+    data.seek(offset)
+    return struct.unpack(">f", data.read(length))[0]
+
+
+def write_u8(data: BytesIO, offset: int, new_value: int):
+    new_bytes = struct.pack(">B", new_value)
+    data.seek(offset)
+    data.write(new_bytes)
+
+def write_u16(data: BytesIO, offset: int, new_value: int):
+    new_bytes = struct.pack(">H", new_value)
+    data.seek(offset)
+    data.write(new_bytes)
+
+def write_u32(data: BytesIO, offset: int, new_value: int):
+    new_bytes = struct.pack(">I", new_value)
+    data.seek(offset)
+    data.write(new_bytes)
+
+def write_s32(data: BytesIO, offset: int, new_value: int):
+    new_bytes = struct.pack(">i", new_value)
+    data.seek(offset)
+    data.write(new_bytes)
+
+def write_float(data: BytesIO, offset: int, new_value: float):
+    new_bytes = struct.pack(">f", new_value)
+    data.seek(offset)
+    data.write(new_bytes)
+
+
+def read_str_until_null_character(data: BytesIO, offset: int) -> str:
+    data_length = data.seek(0, 2)
+    if offset > data_length:
+        raise ByteHelperError(f"Offset 0x{str(offset)} is longer than the data size {str(data_length)}.")
+
+    temp_offset = offset
+    while temp_offset < data_length:
+        data.seek(temp_offset)
+        char = data.read(1)
+        if char == b"\0":
+            break
+        temp_offset += 1
+
+    data.seek(offset)
+    string = data.read(temp_offset-offset).decode("shift_jis")
+    return string
+
+def write_str(data: BytesIO, offset: int, new_string: str, max_length: int):
+    encoded_string = new_string.encode("shift_jis")
+    str_len = len(encoded_string)
+    if str_len >= max_length:
+        raise Exception(f"String \"{new_string}\" is too long (max length: {str(max_length)})")
+
+    padding_length = max_length - str_len
+    new_value = encoded_string + (b"\0" * padding_length)
+
+    data.seek(offset)
+    data.write(new_value)
