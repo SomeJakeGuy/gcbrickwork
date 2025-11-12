@@ -22,7 +22,7 @@ class JMPFieldHeader:
     The last byte represents the data type, see JMPType for value -> type conversion
     """
     field_hash: int = 0
-    field_name: str = ""
+    field_name: str = None
     field_bitmask: int = 0
     field_start_bit: int = 0
     field_shift_bit: int = 0
@@ -33,6 +33,7 @@ class JMPFieldHeader:
             struct.unpack(">I I H B B", header_bytes))
         if self.field_data_type not in JMPType:
             raise Exception("Unknown JMP Data Type provided: " + str(self.field_data_type))
+        self.field_name = str(self.field_hash)
 
     def __str__(self):
         return str(self.__dict__)
@@ -48,6 +49,7 @@ class JMP:
     """
     data: BytesIO = None
     data_entries: list[dict[JMPFieldHeader, int | str | float]] = []
+    fields: list[JMPFieldHeader] = []
 
     def __init__(self, jmp_data: BytesIO):
         self.data = jmp_data
@@ -76,11 +78,10 @@ class JMP:
             raise Exception("When trying to read the header block of the JMP file, the size was bigger than expected " +
                 "and could not be parsed properly.")
         self.data.seek(16) # Start after the previous important 16 bytes.
-        jmp_headers: list[JMPFieldHeader] = self._load_headers(field_count)
+        self.fields = self._load_headers(field_count)
 
         # Load all data entries / rows of this table.
-        self._load_entries(data_entry_count, single_data_entry_size, jmp_headers)
-
+        self._load_entries(data_entry_count, single_data_entry_size, self.fields)
 
     def _load_headers(self, field_count: int) -> list[JMPFieldHeader]:
         """
@@ -96,7 +97,6 @@ class JMP:
         """
         Loads all the rows one by one and populates each column's value per row.
         """
-
         for current_entry in range(data_entry_count):
             new_entry: dict[JMPFieldHeader, int | str | float] = {}
             data_entry_start: int = current_entry * data_entry_size
@@ -114,3 +114,16 @@ class JMP:
                         new_entry[jmp_header] = float(struct.unpack(">f", self.data.read(4))[0])
 
             self.data_entries.append(new_entry)
+
+    def map_hash_to_name(self, field_names: dict[int | str, str]):
+        for key, val in field_names.items():
+            jmp_field: JMPFieldHeader = self.find_field_by_hash(int(key))
+            if jmp_field is None:
+                continue
+            jmp_field.field_name = val
+
+    def find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
+        return next((jfield for jfield in self.fields if jfield.field_hash == jmp_field_hash), None)
+
+    def find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
+        return next((jfield for jfield in self.fields if jfield.field_name == jmp_field_name), None)
