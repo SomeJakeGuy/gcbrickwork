@@ -7,6 +7,9 @@ JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
 
+class JMPFileError(Exception):
+    pass
+
 class JMPType(IntEnum):
     Int = 0
     Str = 1
@@ -78,11 +81,14 @@ class JMP:
         header_block_bytes: bytes = self.data.read(header_block_size - 16) # Field details start after the above 16 bytes
         if (len(header_block_bytes) % JMP_HEADER_SIZE != 0 or not (len(header_block_bytes) / JMP_HEADER_SIZE) ==
             field_count or header_block_size > original_file_size):
-            raise Exception("When trying to read the header block of the JMP file, the size was bigger than expected " +
-                "and could not be parsed properly.")
+            raise JMPFileError("When trying to read the header block of the JMP file, the size was bigger than " +
+                "expected and could not be parsed properly.")
         self.fields = self._load_headers(field_count)
 
         # Load all data entries / rows of this table.
+        if header_block_size + (self.single_entry_size * data_entry_count) > original_file_size:
+            raise JMPFileError("When trying to read the date entries block of the JMP file, the size was bigger than " +
+                "expected and could not be parsed properly.")
         self._load_entries(data_entry_count, self.single_entry_size, header_block_size, self.fields)
 
     def _load_headers(self, field_count: int) -> list[JMPFieldHeader]:
