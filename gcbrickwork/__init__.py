@@ -1,2 +1,2 @@
-from .PRM import *
-from .JMP import *
+from gcbrickwork.PRM import PRM, PRMType, PRMVector, PRMColor, PRMFieldEntry
+from gcbrickwork.JMP import JMP, JMPType, JMPFieldHeader

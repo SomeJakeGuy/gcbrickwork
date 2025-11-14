@@ -1,16 +1,27 @@
+import io
 from dataclasses import dataclass
 from enum import IntEnum
-from io import BytesIO
-import struct
+
+from .Bytes_Helper import *
+
+
+type PRMValue = bytes | int | PRMColor | PRMVector
+
+class PRMType(IntEnum):
+    Byte = 1
+    Short = 2
+    Number = 4
+    Vector = 12 # Ties out to PRMVector
+    Color = 16 # Ties out to PRMColor
 
 
 @dataclass
 class PRMColor:
     """C/C++ Clr (color) object representation"""
-    red_value: int
-    green_value: int
-    blue_value: int
-    opacity: int
+    red_value: int = 0
+    green_value: int = 0
+    blue_value: int = 0
+    opacity: int = 0
 
     def __init__(self, red: int, green: int, blue: int, opacity: int):
         self.red_value = red
@@ -18,130 +29,138 @@ class PRMColor:
         self.blue_value = blue
         self.opacity = opacity
 
-    @staticmethod
-    def unpack_color(color_data: bytes) -> "PRMColor":
-        return PRMColor(*struct.unpack(">4I", color_data))
-
     def __str__(self):
-        return (f"Red Val: {str(self.red_value)}; Green Val: {str(self.green_value)}; " +
-                f"Blue Val: {str(self.blue_value)}; Opacity Val: {str(self.green_value)}")
+        return (f"Red Val: 0x{hex(self.red_value)}; Green Val: 0x{hex(self.green_value)}; " +
+                f"Blue Val: 0x{hex(self.blue_value)}; Opacity Val: 0x{hex(self.green_value)}")
 
     def __len__(self):
         return 16
-
-    def __bytes__(self):
-        return struct.pack(">4I", self.red_value, self.green_value, self.blue_value, self.green_value)
 
 
 @dataclass
 class PRMVector:
     """C/C++ Vector3 object equivalent. Float representation of things like positions, scale, directions, etc."""
-    float_one: float
-    float_two: float
-    float_three: float
+    float_one: float = 0.0
+    float_two: float = 0.0
+    float_three: float = 0.0
 
     def __init__(self, first_float: float, second_float: float, third_float: float):
         self.float_one = first_float
         self.float_two = second_float
         self.float_three = third_float
 
-    @staticmethod
-    def unpack_vector(vector_data: bytes) -> "PRMVector":
-        return PRMVector(*struct.unpack(">3f", vector_data))
-
-    def __str__(self):
-        return (f"First Float: {str(self.float_one)}; Second Float: {str(self.float_two)}; " +
-                f"Third Float: {str(self.float_three)}")
-
     def __len__(self):
         return 12
 
-    def __bytes__(self):
-        return struct.pack(">3f", self.float_one, self.float_two, self.float_three)
-
 
 @dataclass
-class PRMFileEntry:
-    field_idx: int
-    field_hash: int
-    field_name: str
-    field_value: bytes | str | PRMColor | PRMVector
-    field_value_offset: int
+class PRMFieldEntry:
+    """
+    PRM fields are defined one after the other within a PRM file and have the following data structure:
+        An unsigned short to get the field's hash value.
+        An unsigned short to get the field name's length
+        Based on the previous short, read the next X number of bytes to get the field name as a str.
+        An unsigned integer to then figure out the type of data the value is stored as.
+        Based on that data type, get the corresponding value and converted type
+            Int/Floats are NOT converted due to the fact there is NO indicator to know when to use either.
+            Except for Color / Vector, as they have their own defined types.
+    """
+    field_hash: int = 0
+    field_name: str = None
+    field_type: PRMType = None
+    field_value: PRMValue = None
 
-    def __init__(self, idx: int, entry_hash: int, entry_name: str,
-        entry_value: bytes | str | PRMColor | PRMVector, entry_offset: int):
-        self.field_idx = idx
+    def __init__(self, entry_hash: int, name: str, entry_type: PRMType, value: PRMValue):
         self.field_hash = entry_hash
-        self.field_name = entry_name
-        self.field_value = entry_value
-        self.field_value_offset = entry_offset
+        self.field_name = name
+        self.field_type = entry_type
+        self.field_value = value
 
     def __str__(self):
-        return f"Field Hash: {str(self.field_hash)}\nField Name: {self.field_name}\nField Value: {str(self.field_value)}"
-
-
-class PRMType(IntEnum):
-    Byte = 1
-    Short = 2
-    Hex = 4
-    Vector = 12 # Ties out to PRMVector
-    Color = 16 # Ties out to PRMColor
+        return f"Field Hash: {str(self.field_hash)}; Name: {self.field_name}; Value: {str(self.field_value)}"
 
 
 class PRM:
     data: BytesIO = None
-    data_entries: list[PRMFileEntry] = []
+    data_entries: list[PRMFieldEntry] = []
 
     def __init__(self, prm_data: BytesIO):
         self.data = prm_data
 
     def load_file(self) -> None:
-        self.data.seek(0)
-        num_of_entries = struct.unpack(">I", self.data.read(4))[0]
+        """
+        PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
+        These files typically host values that would change frequently and are read by the program at run-time.
+        PRM Files start with 4 bytes as an unsigned int to tell how many parameters are defined.
+        The structure of the entries can be found in PRMFieldEntry
+        """
+        current_offset: int = 0
+        num_of_entries: int = read_u32(self.data, 0)
+        current_offset += 4
 
         for entry_num in range(num_of_entries):
-            entry_hash: int = int(struct.unpack(">H", self.data.read(2))[0])
-            entry_name_length: int = int(struct.unpack(">H", self.data.read(2))[0])
-            entry_name: str = struct.unpack(f">{entry_name_length}s", self.data.read(entry_name_length))[0].decode("shift_jis")
+            entry_hash: int = read_u16(self.data, current_offset)
+            entry_name_length: int = read_u16(self.data, current_offset + 2)
+            entry_name: str = read_str_until_null_character(self.data, current_offset + 4, entry_name_length)
+            current_offset += entry_name_length + 4
 
-            entry_size: int = int(struct.unpack(">I", self.data.read(4))[0])
-            entry_bytes: bytes = self.data.read(entry_size)
+            entry_size: int = read_u32(self.data, current_offset)
             match entry_size:
-                case PRMType.Byte:
-                    entry_value: bytes = entry_bytes[:1]
+                case PRMType.Byte | PRMType.Number:
+                    entry_value: bytes = self.data.read(entry_size)
                 case PRMType.Short:
-                    entry_value: int = int.from_bytes(entry_bytes, "big")
-                case PRMType.Hex:
-                    entry_value: str = entry_bytes.hex()
+                    entry_value: int = read_u16(self.data, current_offset)
                 case PRMType.Vector:
-                    entry_value: PRMVector = PRMVector.unpack_vector(entry_bytes)
+                    float_one: float = read_float(self.data, current_offset)
+                    float_two: float = read_float(self.data, current_offset + 4)
+                    float_three: float = read_float(self.data, current_offset + 8)
+                    entry_value: PRMVector = PRMVector(float_one, float_two, float_three)
                 case PRMType.Color:
-                    entry_value: PRMColor = PRMColor.unpack_color(entry_bytes)
+                    color_one: int = read_u32(self.data, current_offset)
+                    color_two: int = read_u32(self.data, current_offset + 4)
+                    color_three: int = read_u32(self.data, current_offset + 8)
+                    color_four: int = read_u32(self.data, current_offset + 12)
+                    entry_value: PRMColor = PRMColor(color_one, color_two, color_three, color_four)
                 case _:
                     raise ValueError("Unimplemented PRM type detected: " + str(entry_size))
-
-            # 4 for initial data entry count, the other numbers listed here are the hash, length, etc.
-            data_offset: int = 4 + ((2 + 2 + entry_name_length + 4 + entry_size) * (entry_num + 1))
-            self.data_entries.append(PRMFileEntry(entry_num, entry_hash, entry_name, entry_value, data_offset))
+            current_offset += entry_size
+            self.data_entries.append(PRMFieldEntry(entry_hash, entry_name, entry_size, entry_value))
 
     def update_file(self) -> None:
-        self.data.seek(0)
-        self.data.write(len(self.data_entries).to_bytes(4, "big"))
+        """
+        Using the provided fields and values, re-create the file in the data structure described in load_file, which
+            at a high level requires the first four bytes to be the number of PRM fields, then the PRM fields/data.
+        It should be noted that there is NO padding at the end of these files.
+        """
+        current_offset: int = 0
+        self.data = io.BytesIO()
+        write_u32(self.data, 0, len(self.data_entries))
+        current_offset += 4
 
-        self.data_entries.sort(key=lambda entry: entry.field_idx)
         for prm_entry in self.data_entries:
-            self.data.seek(prm_entry.field_value_offset)
-            match prm_entry.field_value:
-                case bytes():
-                    self.data.write(prm_entry.field_value)
-                case str():
-                    self.data.write(prm_entry.field_value.encode("shift_jis"))
-                case _:
-                    self.data.write(bytes(prm_entry.field_value))
+            write_u16(self.data, current_offset, prm_entry.field_hash)
+            write_u16(self.data, current_offset + 2, len(prm_entry.field_name))
+            write_str(self.data, current_offset + 4, prm_entry.field_name, len(prm_entry.field_name))
+            current_offset += len(prm_entry.field_name) + 4
+            match prm_entry.field_type:
+                case PRMType.Byte:
+                    write_u8(self.data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
+                case PRMType.Short:
+                    write_u16(self.data, current_offset, prm_entry.field_value)
+                case PRMType.Number:
+                    write_u32(self.data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
+                case PRMType.Vector:
+                    val: PRMVector = prm_entry.field_value
+                    write_float(self.data, current_offset, val.float_one)
+                    write_float(self.data, current_offset + 4, val.float_two)
+                    write_float(self.data, current_offset + 8, val.float_three)
+                case PRMType.Color:
+                    val: PRMColor = prm_entry.field_value
+                    write_u32(self.data, current_offset, val.red_value)
+                    write_u32(self.data, current_offset + 4, val.green_value)
+                    write_u32(self.data, current_offset + 8, val.blue_value)
+                    write_u32(self.data, current_offset + 12, val.opacity)
+            current_offset+=prm_entry.field_type
 
-    def get_entry(self, field_name: str) -> PRMFileEntry:
+    def get_entry(self, field_name: str) -> PRMFieldEntry:
         return next(entry for entry in self.data_entries if entry.field_name == field_name)
-
-    def print_entries(self):
-        for _ in self.data_entries:
-            print(str(_))
