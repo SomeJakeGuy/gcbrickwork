@@ -5,8 +5,8 @@ Allows you to read, write, and update data via BytesIO streams, which can then b
 ## Supported Files
 | File Name / Format        | Supported? |
 |:--------------------------|:----------:|
-| .prm / parameters / param |     ✅      |
-| .jmp / jump               |     ~      |
+| .prm / parameters / param |✅|
+| .jmp / jump               |✅|
 
 ~ indicates a type of file that is in progress
 
