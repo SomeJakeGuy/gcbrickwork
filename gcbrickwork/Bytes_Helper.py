@@ -7,6 +7,7 @@ import struct
 class ByteHelperError(Exception):
     pass
 
+GC_ENCODING_STR = "shift_jis"
 
 def read_u8(data: BytesIO, offset: int) -> int:
     data_length = data.seek(offset, 2)
@@ -89,11 +90,11 @@ def read_str_until_null_character(data: BytesIO, offset: int, max_length: int) -
         temp_offset += 1
 
     data.seek(offset)
-    string = data.read(temp_offset-offset).decode("shift_jis")
+    string = data.read(temp_offset-offset).decode(GC_ENCODING_STR)
     return string
 
 def write_str(data: BytesIO, offset: int, new_string: str, max_length: int, padding_byte: bytes = b"\0"):
-    encoded_string = new_string.encode("shift_jis")
+    encoded_string = new_string.encode(GC_ENCODING_STR)
     str_len = len(encoded_string)
     if str_len >= max_length:
         raise ByteHelperError(f"String \"{new_string}\" is too long (max length: {str(max_length)})")
