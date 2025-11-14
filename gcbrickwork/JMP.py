@@ -69,7 +69,7 @@ class JMP:
             Gives the total size of the header block, and the number of data files that are defined in the file.
         Each of these are 4 bytes long, with the first 8 bytes being signed integers and the second 8 bytes are unsigned.
         It should be noted that there will be extra bytes typically at the end of a jmp file, which are padded with "@".
-            These paddings can be anywhere from 1 to 15 bytes, up until the total bytes is divisible by 16.
+            These paddings can be anywhere from 1 to 31 bytes, up until the total bytes is divisible by 32.
         """
         original_file_size = self.data.seek(0, 2)
 
