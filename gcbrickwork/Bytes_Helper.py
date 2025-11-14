@@ -96,7 +96,7 @@ def write_str(data: BytesIO, offset: int, new_string: str, max_length: int, padd
     encoded_string = new_string.encode("shift_jis")
     str_len = len(encoded_string)
     if str_len >= max_length:
-        raise Exception(f"String \"{new_string}\" is too long (max length: {str(max_length)})")
+        raise ByteHelperError(f"String \"{new_string}\" is too long (max length: {str(max_length)})")
 
     padding_length = max_length - str_len
     new_value = encoded_string + (padding_byte * padding_length)
