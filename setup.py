@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="gcbrickwork",
     packages=setuptools.find_packages(),
-    version="0.0.1",
+    version="1.0.0",
     license="MIT",
     author="Some Jake Guy",
     author_email="somejakeguy@gmail.com",
@@ -20,7 +20,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    keywords=["gcbrickwork", "gamecube", "prm"],
+    keywords=["gcbrickwork", "gamecube", "prm", "jmp"],
     install_requires=[],
     python_requires='>=3.12',
 )
