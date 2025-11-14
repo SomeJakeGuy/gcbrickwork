@@ -3,9 +3,11 @@ from enum import IntEnum
 
 from .Bytes_Helper import *
 
+
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
+type JMPEntry = dict[JMPFieldHeader, int | str | float]
 
 class JMPFileError(Exception):
     pass
@@ -54,7 +56,7 @@ class JMP:
     JMP Files also start with 16 bytes that are useful to explain the rest of the structure of the file.
     """
     data: BytesIO = None
-    data_entries: list[dict[JMPFieldHeader, int | str | float]] = []
+    data_entries: list[JMPEntry] = []
     fields: list[JMPFieldHeader] = []
     single_entry_size: int = 0
 
@@ -115,8 +117,8 @@ class JMP:
         Loads all the rows one by one and populates each column's value per row.
         """
         for current_entry in range(data_entry_count):
-            new_entry: dict[JMPFieldHeader, int | str | float] = {}
-            data_entry_start: int = (current_entry * data_entry_size)+header_size
+            new_entry: JMPEntry = {}
+            data_entry_start: int = (current_entry * data_entry_size) + header_size
 
             for jmp_header in field_list:
                 match jmp_header.field_data_type:
@@ -130,12 +132,12 @@ class JMP:
                         new_entry[jmp_header] = read_float(self.data,  data_entry_start + jmp_header.field_start_bit)
             self.data_entries.append(new_entry)
 
-    def map_hash_to_name(self, field_names: dict[int | str, str]):
+    def map_hash_to_name(self, field_names: dict[int, str]):
         """
         Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
         """
         for key, val in field_names.items():
-            jmp_field: JMPFieldHeader = self.find_field_by_hash(int(key))
+            jmp_field: JMPFieldHeader = self.find_field_by_hash(key)
             if jmp_field is None:
                 continue
             jmp_field.field_name = val
@@ -158,6 +160,17 @@ class JMP:
         write_u32(local_data, 8, new_header_size) # Size of Header Block
         write_u32(local_data, 12, self.single_entry_size) # Size of a single data entry
 
+        current_offset: int = self._update_headers(local_data)
+        self._update_entries(local_data, current_offset)
+
+        # JMP Files are then padded with @ if their file size are not divisible by 32.
+        curr_length = local_data.seek(0, 2)
+        local_data.seek(curr_length)
+        if curr_length % 32 > 0:
+            write_str(local_data, curr_length, "", curr_length % 32, "@".encode(GC_ENCODING_STR))
+        self.data = local_data
+
+    def _update_headers(self, local_data: BytesIO) -> int:
         # Add the individual headers to complete the header block
         current_offset: int = 16
         for jmp_header in self.fields:
@@ -168,6 +181,9 @@ class JMP:
             write_u8(local_data, current_offset + 11, jmp_header.field_data_type)
             current_offset += JMP_HEADER_SIZE
 
+        return current_offset
+
+    def _update_entries(self, local_data: BytesIO, current_offset: int):
         # Add the all the data entry lines. Ints have special treatment consideration as they have a bitmask, so
         # the original data must be read to ensure the unrelated bits are preserved.
         for line_entry in self.data_entries:
@@ -182,10 +198,3 @@ class JMP:
                     case JMPType.Flt:
                         write_float(local_data, current_offset + key.field_start_bit, val)
             current_offset += self.single_entry_size
-
-        # JMP Files are then padded with @ if their file size are not divisible by 32.
-        curr_length = local_data.seek(0, 2)
-        local_data.seek(curr_length)
-        if curr_length % 32 > 0:
-            write_str(local_data, curr_length, "", curr_length % 32, "@".encode("shift_jis"))
-        self.data = local_data
