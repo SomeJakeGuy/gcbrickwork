@@ -5,6 +5,8 @@ from enum import IntEnum
 from .Bytes_Helper import *
 
 
+type PRMValue = bytes | int | PRMColor | PRMVector
+
 class PRMType(IntEnum):
     Byte = 1
     Short = 2
@@ -28,8 +30,8 @@ class PRMColor:
         self.opacity = opacity
 
     def __str__(self):
-        return (f"Red Val: {str(self.red_value)}; Green Val: {str(self.green_value)}; " +
-                f"Blue Val: {str(self.blue_value)}; Opacity Val: {str(self.green_value)}")
+        return (f"Red Val: 0x{hex(self.red_value)}; Green Val: 0x{hex(self.green_value)}; " +
+                f"Blue Val: 0x{hex(self.blue_value)}; Opacity Val: 0x{hex(self.green_value)}")
 
     def __len__(self):
         return 16
@@ -47,9 +49,6 @@ class PRMVector:
         self.float_two = second_float
         self.float_three = third_float
 
-    def __str__(self):
-        return f"First Float: {str(self.float_one)}; Second Float: {str(self.float_two)}; Third Float: {str(self.float_three)}"
-
     def __len__(self):
         return 12
 
@@ -58,23 +57,22 @@ class PRMVector:
 class PRMFieldEntry:
     """
     PRM fields are defined one after the other within a PRM file and have the following data structure:
-        Read an unsigned short to get the field's hash value.
-        Read an unsigned short to get the field name's length
-        Based on the previous short read, read the next X number of bits to get the field name.
-        Read an unsigned integer to then figure out the type of data the value is stored as.
+        An unsigned short to get the field's hash value.
+        An unsigned short to get the field name's length
+        Based on the previous short, read the next X number of bytes to get the field name as a str.
+        An unsigned integer to then figure out the type of data the value is stored as.
         Based on that data type, get the corresponding value and converted type
             Int/Floats are NOT converted due to the fact there is NO indicator to know when to use either.
+            Except for Color / Vector, as they have their own defined types.
     """
     field_hash: int = 0
     field_name: str = None
-    field_name_size: int = 0
     field_type: PRMType = None
-    field_value: bytes | int | PRMColor | PRMVector = None
+    field_value: PRMValue = None
 
-    def __init__(self, entry_hash: int, name: str, name_size: int, entry_type: PRMType, value: bytes | int | PRMColor | PRMVector):
+    def __init__(self, entry_hash: int, name: str, entry_type: PRMType, value: PRMValue):
         self.field_hash = entry_hash
         self.field_name = name
-        self.field_name_size = name_size
         self.field_type = entry_type
         self.field_value = value
 
@@ -94,13 +92,7 @@ class PRM:
         PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
         These files typically host values that would change frequently and are read by the program at run-time.
         PRM Files start with 4 bytes as an unsigned int to tell how many parameters are defined.
-        After the file then reads the fields in the following manner:
-            Read an unsigned short to get the field's hash value.
-            Read an unsigned short to get the field name's length
-            Based on the previous short read, read the next X number of bits to get the field name.
-            Read an unsigned integer to then figure out the type of data the value is stored as.
-            Based on that data type, get the corresponding value and converted type
-                Int/Floats are NOT converted due to the fact there is NO indicator to know when to use either.
+        The structure of the entries can be found in PRMFieldEntry
         """
         current_offset: int = 0
         num_of_entries: int = read_u32(self.data, 0)
@@ -132,7 +124,7 @@ class PRM:
                 case _:
                     raise ValueError("Unimplemented PRM type detected: " + str(entry_size))
             current_offset += entry_size
-            self.data_entries.append(PRMFieldEntry(entry_hash, entry_name, entry_name_length, entry_size, entry_value))
+            self.data_entries.append(PRMFieldEntry(entry_hash, entry_name, entry_size, entry_value))
 
     def update_file(self) -> None:
         """
@@ -147,9 +139,9 @@ class PRM:
 
         for prm_entry in self.data_entries:
             write_u16(self.data, current_offset, prm_entry.field_hash)
-            write_u16(self.data, current_offset + 2, prm_entry.field_name_size)
-            write_str(self.data, current_offset + 4, prm_entry.field_name, prm_entry.field_name_size)
-            current_offset += prm_entry.field_name_size + 4
+            write_u16(self.data, current_offset + 2, len(prm_entry.field_name))
+            write_str(self.data, current_offset + 4, prm_entry.field_name, len(prm_entry.field_name))
+            current_offset += len(prm_entry.field_name) + 4
             match prm_entry.field_type:
                 case PRMType.Byte:
                     write_u8(self.data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
@@ -172,7 +164,3 @@ class PRM:
 
     def get_entry(self, field_name: str) -> PRMFieldEntry:
         return next(entry for entry in self.data_entries if entry.field_name == field_name)
-
-    def print_entries(self):
-        for _ in self.data_entries:
-            print(str(_))
