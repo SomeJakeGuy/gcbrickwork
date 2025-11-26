@@ -129,9 +129,9 @@ class PRM:
 
         return cls(prm_entries)
 
-    def update_file(self) -> BytesIO:
+    def create_new_prm(self) -> BytesIO:
         """
-        Using the provided fields and values, re-create the file in the data structure described in load_file, which
+        Using the provided fields and values, re-create the file in the data structure described in load_prm, which
             at a high level requires the first four bytes to be the number of PRM fields, then the PRM fields/data.
         It should be noted that there is NO padding at the end of these files.
         """
