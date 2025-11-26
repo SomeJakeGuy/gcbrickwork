@@ -81,11 +81,11 @@ class PRMFieldEntry:
 
 
 class PRM:
-    data: BytesIO = None
+    _data: BytesIO = None
     data_entries: list[PRMFieldEntry] = []
 
     def __init__(self, prm_data: BytesIO):
-        self.data = prm_data
+        self._data = prm_data
 
     def load_file(self) -> None:
         """
@@ -95,72 +95,74 @@ class PRM:
         The structure of the entries can be found in PRMFieldEntry
         """
         current_offset: int = 0
-        num_of_entries: int = read_u32(self.data, 0)
+        num_of_entries: int = read_u32(self._data, 0)
         current_offset += 4
 
         for entry_num in range(num_of_entries):
-            entry_hash: int = read_u16(self.data, current_offset)
-            entry_name_length: int = read_u16(self.data, current_offset + 2)
-            entry_name: str = read_str_until_null_character(self.data, current_offset + 4, entry_name_length)
+            entry_hash: int = read_u16(self._data, current_offset)
+            entry_name_length: int = read_u16(self._data, current_offset + 2)
+            entry_name: str = read_str_until_null_character(self._data, current_offset + 4, entry_name_length)
             current_offset += entry_name_length + 4
 
-            entry_size: int = read_u32(self.data, current_offset)
+            entry_size: int = read_u32(self._data, current_offset)
             match entry_size:
                 case PRMType.Byte | PRMType.Number:
-                    entry_value: bytes = self.data.read(entry_size)
+                    entry_value: bytes = self._data.read(entry_size)
                 case PRMType.Short:
-                    entry_value: int = read_u16(self.data, current_offset)
+                    entry_value: int = read_u16(self._data, current_offset)
                 case PRMType.Vector:
-                    float_one: float = read_float(self.data, current_offset)
-                    float_two: float = read_float(self.data, current_offset + 4)
-                    float_three: float = read_float(self.data, current_offset + 8)
+                    float_one: float = read_float(self._data, current_offset)
+                    float_two: float = read_float(self._data, current_offset + 4)
+                    float_three: float = read_float(self._data, current_offset + 8)
                     entry_value: PRMVector = PRMVector(float_one, float_two, float_three)
                 case PRMType.Color:
-                    color_one: int = read_u32(self.data, current_offset)
-                    color_two: int = read_u32(self.data, current_offset + 4)
-                    color_three: int = read_u32(self.data, current_offset + 8)
-                    color_four: int = read_u32(self.data, current_offset + 12)
+                    color_one: int = read_u32(self._data, current_offset)
+                    color_two: int = read_u32(self._data, current_offset + 4)
+                    color_three: int = read_u32(self._data, current_offset + 8)
+                    color_four: int = read_u32(self._data, current_offset + 12)
                     entry_value: PRMColor = PRMColor(color_one, color_two, color_three, color_four)
                 case _:
                     raise ValueError("Unimplemented PRM type detected: " + str(entry_size))
             current_offset += entry_size
             self.data_entries.append(PRMFieldEntry(entry_hash, entry_name, entry_size, entry_value))
 
-    def update_file(self) -> None:
+    def update_file(self) -> BytesIO:
         """
         Using the provided fields and values, re-create the file in the data structure described in load_file, which
             at a high level requires the first four bytes to be the number of PRM fields, then the PRM fields/data.
         It should be noted that there is NO padding at the end of these files.
         """
         current_offset: int = 0
-        self.data = io.BytesIO()
-        write_u32(self.data, 0, len(self.data_entries))
+        self._data = io.BytesIO()
+        write_u32(self._data, 0, len(self.data_entries))
         current_offset += 4
 
         for prm_entry in self.data_entries:
-            write_u16(self.data, current_offset, prm_entry.field_hash)
-            write_u16(self.data, current_offset + 2, len(prm_entry.field_name))
-            write_str(self.data, current_offset + 4, prm_entry.field_name, len(prm_entry.field_name))
+            write_u16(self._data, current_offset, prm_entry.field_hash)
+            write_u16(self._data, current_offset + 2, len(prm_entry.field_name))
+            write_str(self._data, current_offset + 4, prm_entry.field_name, len(prm_entry.field_name))
             current_offset += len(prm_entry.field_name) + 4
             match prm_entry.field_type:
                 case PRMType.Byte:
-                    write_u8(self.data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
+                    write_u8(self._data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
                 case PRMType.Short:
-                    write_u16(self.data, current_offset, prm_entry.field_value)
+                    write_u16(self._data, current_offset, prm_entry.field_value)
                 case PRMType.Number:
-                    write_u32(self.data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
+                    write_u32(self._data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
                 case PRMType.Vector:
                     val: PRMVector = prm_entry.field_value
-                    write_float(self.data, current_offset, val.float_one)
-                    write_float(self.data, current_offset + 4, val.float_two)
-                    write_float(self.data, current_offset + 8, val.float_three)
+                    write_float(self._data, current_offset, val.float_one)
+                    write_float(self._data, current_offset + 4, val.float_two)
+                    write_float(self._data, current_offset + 8, val.float_three)
                 case PRMType.Color:
                     val: PRMColor = prm_entry.field_value
-                    write_u32(self.data, current_offset, val.red_value)
-                    write_u32(self.data, current_offset + 4, val.green_value)
-                    write_u32(self.data, current_offset + 8, val.blue_value)
-                    write_u32(self.data, current_offset + 12, val.opacity)
+                    write_u32(self._data, current_offset, val.red_value)
+                    write_u32(self._data, current_offset + 4, val.green_value)
+                    write_u32(self._data, current_offset + 8, val.blue_value)
+                    write_u32(self._data, current_offset + 12, val.opacity)
             current_offset+=prm_entry.field_type
+
+        return self._data
 
     def get_entry(self, field_name: str) -> PRMFieldEntry:
         return next(entry for entry in self.data_entries if entry.field_name == field_name)
