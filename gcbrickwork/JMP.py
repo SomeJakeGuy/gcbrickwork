@@ -63,7 +63,7 @@ class JMP:
     def __init__(self, jmp_data: BytesIO):
         self._data = jmp_data
 
-    def load_file(self):
+    def load_jmp(self):
         """
         Loads the first 16 bytes to determine (in order): how many data entries there are, how many fields are defined,
             Gives the total size of the header block, and the number of data files that are defined in the file.
@@ -148,9 +148,9 @@ class JMP:
     def find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
         return next((jfield for jfield in self.fields if jfield.field_name == jmp_field_name), None)
 
-    def update_file(self):
+    def create_new_jmp(self):
         """
-        Recreate the file from the fields / data_entries, as new entries / headers could have been added. Keeping the
+        Create a new the file from the fields / data_entries, as new entries / headers could have been added. Keeping the
         original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
         """
         local_data = BytesIO()
