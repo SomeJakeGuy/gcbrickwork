@@ -124,7 +124,7 @@ class JMP:
                 match jmp_header.field_data_type:
                     case JMPType.Int:
                         current_val: int = read_u32(self._data, data_entry_start + jmp_header.field_start_bit)
-                        new_entry[jmp_header] = (current_val & jmp_header.field_bitmask) >> jmp_header.field_shift_bit
+                        new_entry[jmp_header] = (current_val >> jmp_header.field_shift_bit) & jmp_header.field_bitmask
                     case JMPType.Str:
                         new_entry[jmp_header] = read_str_until_null_character(self._data,
                             data_entry_start + jmp_header.field_start_bit, JMP_STRING_BYTE_LENGTH)
@@ -184,14 +184,12 @@ class JMP:
         return current_offset
 
     def _update_entries(self, local_data: BytesIO, current_offset: int):
-        # Add the all the data entry lines. Ints have special treatment consideration as they have a bitmask, so
-        # the original data must be read to ensure the unrelated bits are preserved.
+        # Add the all the data entry lines.
         for line_entry in self.data_entries:
             for key, val in line_entry.items():
                 match key.field_data_type:
                     case JMPType.Int:
-                        old_val = read_u32(self._data, current_offset + key.field_start_bit)
-                        new_val = ((old_val & ~key.field_bitmask) | ((val << key.field_shift_bit) & key.field_bitmask))
+                        new_val = (val << key.field_shift_bit) | key.field_bitmask
                         write_u32(local_data, current_offset + key.field_start_bit, new_val)
                     case JMPType.Str:
                         write_str(local_data, current_offset + key.field_start_bit, val, JMP_STRING_BYTE_LENGTH)
