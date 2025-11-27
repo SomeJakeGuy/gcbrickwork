@@ -7,6 +7,7 @@ from .Bytes_Helper import *
 
 type PRMValue = bytes | int | PRMColor | PRMVector
 
+
 class PRMType(IntEnum):
     Byte = 1
     Short = 2
@@ -23,15 +24,18 @@ class PRMColor:
     blue_value: int = 0
     opacity: int = 0
 
+
     def __init__(self, red: int, green: int, blue: int, opacity: int):
         self.red_value = red
         self.green_value = green
         self.blue_value = blue
         self.opacity = opacity
 
+
     def __str__(self):
         return (f"Red Val: 0x{hex(self.red_value)}; Green Val: 0x{hex(self.green_value)}; " +
                 f"Blue Val: 0x{hex(self.blue_value)}; Opacity Val: 0x{hex(self.green_value)}")
+
 
     def __len__(self):
         return 16
@@ -44,10 +48,12 @@ class PRMVector:
     float_two: float = 0.0
     float_three: float = 0.0
 
+
     def __init__(self, first_float: float, second_float: float, third_float: float):
         self.float_one = first_float
         self.float_two = second_float
         self.float_three = third_float
+
 
     def __len__(self):
         return 12
@@ -70,11 +76,13 @@ class PRMFieldEntry:
     field_type: PRMType = None
     field_value: PRMValue = None
 
+
     def __init__(self, entry_hash: int, name: str, entry_type: PRMType, value: PRMValue):
         self.field_hash = entry_hash
         self.field_name = name
         self.field_type = entry_type
         self.field_value = value
+
 
     def __str__(self):
         return f"Field Hash: {str(self.field_hash)}; Name: {self.field_name}; Value: {str(self.field_value)}"
@@ -83,8 +91,10 @@ class PRMFieldEntry:
 class PRM:
     data_entries: list[PRMFieldEntry] = []
 
+
     def __init__(self, input_entries: list[PRMFieldEntry]):
         self.data_entries = input_entries
+
 
     @classmethod
     def load_prm(cls, prm_data: BytesIO):
@@ -129,6 +139,7 @@ class PRM:
 
         return cls(prm_entries)
 
+
     def create_new_prm(self) -> BytesIO:
         """
         Using the provided fields and values, re-create the file in the data structure described in load_prm, which
@@ -166,6 +177,7 @@ class PRM:
             current_offset+=prm_entry.field_type
 
         return local_data
+
 
     def get_entry(self, field_name: str) -> PRMFieldEntry:
         return next(entry for entry in self.data_entries if entry.field_name == field_name)
