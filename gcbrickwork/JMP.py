@@ -119,15 +119,16 @@ class JMP:
         Create a new the file from the fields / data_entries, as new entries / headers could have been added. Keeping the
         original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
         """
-        local_data = BytesIO()
+        local_data: BytesIO = BytesIO()
+        single_entry_size: int = self._calculate_entry_size()
         new_header_size: int = len(self.fields) * JMP_HEADER_SIZE + 16
         write_s32(local_data, 0, len(self.data_entries)) # Amount of data entries
         write_s32(local_data, 4, len(self.fields)) # Amount of JMP fields
         write_u32(local_data, 8, new_header_size) # Size of Header Block
-        write_u32(local_data, 12, self._calculate_entry_size()) # Size of a single data entry
+        write_u32(local_data, 12, single_entry_size) # Size of a single data entry
 
         current_offset: int = self._update_headers(local_data)
-        self._update_entries(local_data, current_offset)
+        self._update_entries(local_data, current_offset, single_entry_size)
 
         # JMP Files are then padded with @ if their file size are not divisible by 32.
         curr_length = local_data.seek(0, 2)
@@ -149,7 +150,7 @@ class JMP:
 
         return current_offset
 
-    def _update_entries(self, local_data: BytesIO, current_offset: int):
+    def _update_entries(self, local_data: BytesIO, current_offset: int, entry_size: int):
         # Add the all the data entry lines.
         for line_entry in self.data_entries:
             for key, val in line_entry.items():
@@ -161,7 +162,7 @@ class JMP:
                         write_str(local_data, current_offset + key.field_start_byte, val, JMP_STRING_BYTE_LENGTH)
                     case JMPType.Flt:
                         write_float(local_data, current_offset + key.field_start_byte, val)
-            current_offset += self.single_entry_size
+            current_offset += entry_size
 
     def _calculate_entry_size(self) -> int:
         sorted_jmp_fields = sorted(copy.deepcopy(self.fields), key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
