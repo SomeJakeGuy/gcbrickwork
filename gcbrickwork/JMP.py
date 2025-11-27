@@ -71,7 +71,7 @@ class JMP:
         if data_entries is None or len(data_entries) == 0:
             self._fields = []
         else:
-            self._fields = sorted(list(data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
+            self._update_list_of_headers()
 
 
     @classmethod
@@ -143,6 +143,8 @@ class JMP:
             raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
                 "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
 
+        self._update_list_of_headers()
+
         local_data: BytesIO = BytesIO()
         single_entry_size: int = self._calculate_entry_size()
         new_header_size: int = len(self._fields) * JMP_HEADER_SIZE + 16
@@ -160,6 +162,10 @@ class JMP:
         if curr_length % 32 > 0:
             write_str(local_data, curr_length, "", curr_length % 32, "@".encode(GC_ENCODING_STR))
         return local_data
+
+
+    def _update_list_of_headers(self):
+        self._fields = sorted(list(self.data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
 
 
     def _update_headers(self, local_data: BytesIO) -> int:
