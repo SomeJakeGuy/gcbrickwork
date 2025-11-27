@@ -24,8 +24,8 @@ class JMPFieldHeader:
     The first 4 bytes represent the field's hash. Currently, it is un-known how a field's name becomes a hash.
         There may be specific games that have created associations from field hash -> field internal name.
     The second 4 bytes represent the field's bitmask
-    The next 2 bytes represent the starting bit for the field within a given data line in the JMP file.
-    The second to last byte represents the shift bits, which is required when reading certain field data.
+    The next 2 bytes represent the starting byte for the field within a given data line in the JMP file.
+    The second to last byte represents the shift bytes, which is required when reading certain field data.
     The last byte represents the data type, see JMPType for value -> type conversion
     """
     field_hash: int = 0
@@ -172,12 +172,12 @@ def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader
     for jmp_entry in range(field_count):
         entry_hash: int = read_u32(header_data, current_offset)
         entry_bitmask: int = read_u32(header_data, current_offset + 4)
-        entry_startbit: int = read_u16(header_data, current_offset + 8)
-        entry_shiftbit: int = read_u8(header_data, current_offset + 10)
+        entry_startbyte: int = read_u16(header_data, current_offset + 8)
+        entry_shiftbyte: int = read_u8(header_data, current_offset + 10)
         entry_type: int = read_u8(header_data, current_offset + 11)
         if not entry_type in JMPType:
             raise ValueError("Unimplemented JMP type detected: " + str(entry_type))
-        field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_startbit, entry_shiftbit, entry_type))
+        field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_startbyte, entry_shiftbyte, entry_type))
         current_offset += JMP_HEADER_SIZE
     return field_headers
 
