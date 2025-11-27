@@ -36,7 +36,7 @@ class JMPFieldHeader:
     field_bitmask: int = 0
     field_start_byte: int = 0
     field_shift_byte: int = 0
-    field_data_type: int = -1
+    field_data_type: JMPType = None
 
     def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_start_byte: int, jmp_shift_byte: int, jmp_data_type: int):
         self.field_hash = jmp_hash
@@ -44,7 +44,7 @@ class JMPFieldHeader:
         self.field_bitmask = jmp_bitmask
         self.field_start_byte = jmp_start_byte
         self.field_shift_byte = jmp_shift_byte
-        self.field_data_type = jmp_data_type
+        self.field_data_type = JMPType(jmp_data_type)
 
     def __str__(self):
         return str(self.__dict__)
@@ -182,8 +182,6 @@ def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader
         entry_start_byte: int = read_u16(header_data, current_offset + 8)
         entry_shift_byte: int = read_u8(header_data, current_offset + 10)
         entry_type: int = read_u8(header_data, current_offset + 11)
-        if not entry_type in JMPType:
-            raise ValueError("Unimplemented JMP type detected: " + str(entry_type))
         field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_start_byte, entry_shift_byte, entry_type))
         current_offset += JMP_HEADER_SIZE
     return field_headers
