@@ -112,7 +112,7 @@ class JMP:
     def find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
         return next((jfield for jfield in self.fields if jfield.field_name == jmp_field_name), None)
 
-    def create_new_jmp(self):
+    def create_new_jmp(self) -> BytesIO:
         """
         Create a new the file from the fields / data_entries, as new entries / headers could have been added. Keeping the
         original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
@@ -132,7 +132,7 @@ class JMP:
         local_data.seek(curr_length)
         if curr_length % 32 > 0:
             write_str(local_data, curr_length, "", curr_length % 32, "@".encode(GC_ENCODING_STR))
-        self._data = local_data
+        return local_data
 
     def _update_headers(self, local_data: BytesIO) -> int:
         # Add the individual headers to complete the header block
