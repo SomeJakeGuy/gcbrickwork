@@ -31,16 +31,16 @@ class JMPFieldHeader:
     field_hash: int = 0
     field_name: str = None
     field_bitmask: int = 0
-    field_start_bit: int = 0
-    field_shift_bit: int = 0
+    field_start_byte: int = 0
+    field_shift_byte: int = 0
     field_data_type: int = -1
 
-    def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_startbit: int, jmp_shiftbit: int, jmp_data_type: int):
+    def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_startbyte: int, jmp_shiftbyte: int, jmp_data_type: int):
         self.field_hash = jmp_hash
         self.field_name = str(self.field_hash)
         self.field_bitmask = jmp_bitmask
-        self.field_start_bit = jmp_startbit
-        self.field_shift_bit = jmp_shiftbit
+        self.field_start_byte = jmp_startbyte
+        self.field_shift_byte = jmp_shiftbyte
         self.field_data_type = jmp_data_type
 
     def __str__(self):
@@ -140,8 +140,8 @@ class JMP:
         for jmp_header in self.fields:
             write_u32(local_data, current_offset, jmp_header.field_hash)
             write_u32(local_data, current_offset + 4, jmp_header.field_bitmask)
-            write_u16(local_data, current_offset + 8, jmp_header.field_start_bit)
-            write_u8(local_data, current_offset + 10, jmp_header.field_shift_bit)
+            write_u16(local_data, current_offset + 8, jmp_header.field_start_byte)
+            write_u8(local_data, current_offset + 10, jmp_header.field_shift_byte)
             write_u8(local_data, current_offset + 11, jmp_header.field_data_type)
             current_offset += JMP_HEADER_SIZE
 
@@ -153,12 +153,12 @@ class JMP:
             for key, val in line_entry.items():
                 match key.field_data_type:
                     case JMPType.Int:
-                        new_val = (val << key.field_shift_bit) | key.field_bitmask
-                        write_u32(local_data, current_offset + key.field_start_bit, new_val)
+                        new_val = (val << key.field_shift_byte) | key.field_bitmask
+                        write_u32(local_data, current_offset + key.field_start_byte, new_val)
                     case JMPType.Str:
-                        write_str(local_data, current_offset + key.field_start_bit, val, JMP_STRING_BYTE_LENGTH)
+                        write_str(local_data, current_offset + key.field_start_byte, val, JMP_STRING_BYTE_LENGTH)
                     case JMPType.Flt:
-                        write_float(local_data, current_offset + key.field_start_bit, val)
+                        write_float(local_data, current_offset + key.field_start_byte, val)
             current_offset += self.single_entry_size
 
 
@@ -195,13 +195,13 @@ def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header
         for jmp_header in field_list:
             match jmp_header.field_data_type:
                 case JMPType.Int:
-                    current_val: int = read_u32(entry_data, data_entry_start + jmp_header.field_start_bit)
-                    new_entry[jmp_header] = (current_val >> jmp_header.field_shift_bit) & jmp_header.field_bitmask
+                    current_val: int = read_u32(entry_data, data_entry_start + jmp_header.field_start_byte)
+                    new_entry[jmp_header] = (current_val >> jmp_header.field_shift_byte) & jmp_header.field_bitmask
                 case JMPType.Str:
                     new_entry[jmp_header] = read_str_until_null_character(entry_data,
-                        data_entry_start + jmp_header.field_start_bit, JMP_STRING_BYTE_LENGTH)
+                        data_entry_start + jmp_header.field_start_byte, JMP_STRING_BYTE_LENGTH)
                 case JMPType.Flt:
-                    new_entry[jmp_header] = read_float(entry_data,  data_entry_start + jmp_header.field_start_bit)
+                    new_entry[jmp_header] = read_float(entry_data,  data_entry_start + jmp_header.field_start_byte)
         data_entries.append(new_entry)
 
     return data_entries
