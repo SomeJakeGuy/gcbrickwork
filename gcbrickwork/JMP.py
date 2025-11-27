@@ -61,6 +61,7 @@ class JMP:
     data_entries: list[JMPEntry] = []
     _fields: list[JMPFieldHeader] = []
 
+
     def __init__(self, data_entries: list[JMPEntry]):
         if not self._validate_all_entries():
             raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
@@ -71,6 +72,7 @@ class JMP:
             self._fields = []
         else:
             self._fields = sorted(list(data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
+
 
     @classmethod
     def load_jmp(cls, jmp_data: BytesIO):
@@ -105,6 +107,7 @@ class JMP:
 
         return cls(entries)
 
+
     def map_hash_to_name(self, field_names: dict[int, str]):
         """
         Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
@@ -115,8 +118,21 @@ class JMP:
                 continue
             jmp_field.field_name = val
 
+
     def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
         return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
+
+
+    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: int | str | float):
+        """Adds a new JMPFieldHeader and a default value to all existing data entries."""
+        if not jmp_field.field_start_byte % 4 == 0:
+            raise JMPFileError("JMPFieldHeader start bytes must be divisible by 4")
+
+        self._fields.append(jmp_field)
+
+        for data_entry in self.data_entries:
+            data_entry[jmp_field] = default_val
+
 
     def create_new_jmp(self) -> BytesIO:
         """
@@ -145,6 +161,7 @@ class JMP:
             write_str(local_data, curr_length, "", curr_length % 32, "@".encode(GC_ENCODING_STR))
         return local_data
 
+
     def _update_headers(self, local_data: BytesIO) -> int:
         """ Add the individual headers to complete the header block """
         current_offset: int = 16
@@ -157,6 +174,7 @@ class JMP:
             current_offset += JMP_HEADER_SIZE
 
         return current_offset
+
 
     def _update_entries(self, local_data: BytesIO, current_offset: int, entry_size: int):
         """ Add the all the data entry lines. """
@@ -172,11 +190,13 @@ class JMP:
                         write_float(local_data, current_offset + key.field_start_byte, val)
             current_offset += entry_size
 
+
     def _calculate_entry_size(self) -> int:
         """Gets a deepy copy of the JMP header list to avoid """
         jmp_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
         sorted_jmp_fields = sorted(jmp_fields, key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
         return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
+
 
     def _validate_all_entries(self) -> bool:
         """
