@@ -1,21 +1,24 @@
+import copy
 from dataclasses import dataclass
 from enum import IntEnum
 
 from .Bytes_Helper import *
-
 
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
 type JMPEntry = dict[JMPFieldHeader, int | str | float]
 
+
 class JMPFileError(Exception):
     pass
+
 
 class JMPType(IntEnum):
     Int = 0
     Str = 1
     Flt = 2 # Float based values.
+
 
 @dataclass
 class JMPFieldHeader:
@@ -24,24 +27,24 @@ class JMPFieldHeader:
     The first 4 bytes represent the field's hash. Currently, it is un-known how a field's name becomes a hash.
         There may be specific games that have created associations from field hash -> field internal name.
     The second 4 bytes represent the field's bitmask
-    The next 2 bytes represent the starting bit for the field within a given data line in the JMP file.
-    The second to last byte represents the shift bits, which is required when reading certain field data.
+    The next 2 bytes represent the starting byte for the field within a given data line in the JMP file.
+    The second to last byte represents the shift bytes, which is required when reading certain field data.
     The last byte represents the data type, see JMPType for value -> type conversion
     """
     field_hash: int = 0
     field_name: str = None
     field_bitmask: int = 0
-    field_start_bit: int = 0
-    field_shift_bit: int = 0
-    field_data_type: int = -1
+    field_start_byte: int = 0
+    field_shift_byte: int = 0
+    field_data_type: JMPType = None
 
-    def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_startbit: int, jmp_shiftbit: int, jmp_data_type: int):
+    def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_start_byte: int, jmp_shift_byte: int, jmp_data_type: int):
         self.field_hash = jmp_hash
         self.field_name = str(self.field_hash)
         self.field_bitmask = jmp_bitmask
-        self.field_start_bit = jmp_startbit
-        self.field_shift_bit = jmp_shiftbit
-        self.field_data_type = jmp_data_type
+        self.field_start_byte = jmp_start_byte
+        self.field_shift_byte = jmp_shift_byte
+        self.field_data_type = JMPType(jmp_data_type)
 
     def __str__(self):
         return str(self.__dict__)
@@ -55,15 +58,24 @@ class JMP:
             where a dictionary maps the key (column) to the value.
     JMP Files also start with 16 bytes that are useful to explain the rest of the structure of the file.
     """
-    data: BytesIO = None
     data_entries: list[JMPEntry] = []
-    fields: list[JMPFieldHeader] = []
-    single_entry_size: int = 0
+    _fields: list[JMPFieldHeader] = []
 
-    def __init__(self, jmp_data: BytesIO):
-        self.data = jmp_data
 
-    def load_file(self):
+    def __init__(self, data_entries: list[JMPEntry]):
+        if not self._validate_all_entries():
+            raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
+                "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
+
+        self.data_entries = data_entries
+        if data_entries is None or len(data_entries) == 0:
+            self._fields = []
+        else:
+            self._update_list_of_headers()
+
+
+    @classmethod
+    def load_jmp(cls, jmp_data: BytesIO):
         """
         Loads the first 16 bytes to determine (in order): how many data entries there are, how many fields are defined,
             Gives the total size of the header block, and the number of data files that are defined in the file.
@@ -71,130 +83,187 @@ class JMP:
         It should be noted that there will be extra bytes typically at the end of a jmp file, which are padded with "@".
             These paddings can be anywhere from 1 to 31 bytes, up until the total bytes is divisible by 32.
         """
-        original_file_size = self.data.seek(0, 2)
+        original_file_size = jmp_data.seek(0, 2)
 
         # Get important file bytes
-        data_entry_count: int = read_s32(self.data, 0)
-        field_count: int = read_s32(self.data, 4)
-        header_block_size: int = read_u32(self.data, 8)
-        self.single_entry_size: int = read_u32(self.data, 12)
+        data_entry_count: int = read_s32(jmp_data, 0)
+        field_count: int = read_s32(jmp_data, 4)
+        header_block_size: int = read_u32(jmp_data, 8)
+        single_entry_size: int = read_u32(jmp_data, 12)
 
         # Load all headers of this file
-        header_block_bytes: bytes = self.data.read(header_block_size - 16) # Field details start after the above 16 bytes
+        header_block_bytes: bytes = jmp_data.read(header_block_size - 16) # Field details start after the above 16 bytes
         if (len(header_block_bytes) % JMP_HEADER_SIZE != 0 or not (len(header_block_bytes) / JMP_HEADER_SIZE) ==
             field_count or header_block_size > original_file_size):
             raise JMPFileError("When trying to read the header block of the JMP file, the size was bigger than " +
                 "expected and could not be parsed properly.")
-        self.fields = self._load_headers(field_count)
+        fields = _load_headers(jmp_data, field_count)
 
         # Load all data entries / rows of this table.
-        if header_block_size + (self.single_entry_size * data_entry_count) > original_file_size:
+        if header_block_size + (single_entry_size * data_entry_count) > original_file_size:
             raise JMPFileError("When trying to read the date entries block of the JMP file, the size was bigger than " +
                 "expected and could not be parsed properly.")
-        self._load_entries(data_entry_count, self.single_entry_size, header_block_size, self.fields)
+        entries = _load_entries(jmp_data, data_entry_count, single_entry_size, header_block_size, fields)
 
-    def _load_headers(self, field_count: int) -> list[JMPFieldHeader]:
-        """
-        Gets the list of all JMP headers that are available in this file. See JMPFieldHeader for exact structure.
-        """
-        current_offset: int = 16
-        field_headers: list[JMPFieldHeader] = []
+        return cls(entries)
 
-        for jmp_entry in range(field_count):
-            entry_hash: int = read_u32(self.data, current_offset)
-            entry_bitmask: int = read_u32(self.data, current_offset + 4)
-            entry_startbit: int = read_u16(self.data, current_offset + 8)
-            entry_shiftbit: int = read_u8(self.data, current_offset + 10)
-            entry_type: int = read_u8(self.data, current_offset + 11)
-            if not entry_type in JMPType:
-                raise ValueError("Unimplemented JMP type detected: " + str(entry_type))
-            field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_startbit, entry_shiftbit, entry_type))
-            current_offset += JMP_HEADER_SIZE
-        return field_headers
-
-    def _load_entries(self, data_entry_count: int, data_entry_size: int, header_size: int, field_list: list[JMPFieldHeader]):
-        """
-        Loads all the rows one by one and populates each column's value per row.
-        """
-        for current_entry in range(data_entry_count):
-            new_entry: JMPEntry = {}
-            data_entry_start: int = (current_entry * data_entry_size) + header_size
-
-            for jmp_header in field_list:
-                match jmp_header.field_data_type:
-                    case JMPType.Int:
-                        current_val: int = read_u32(self.data, data_entry_start + jmp_header.field_start_bit)
-                        new_entry[jmp_header] = (current_val & jmp_header.field_bitmask) >> jmp_header.field_shift_bit
-                    case JMPType.Str:
-                        new_entry[jmp_header] = read_str_until_null_character(self.data,
-                            data_entry_start + jmp_header.field_start_bit, JMP_STRING_BYTE_LENGTH)
-                    case JMPType.Flt:
-                        new_entry[jmp_header] = read_float(self.data,  data_entry_start + jmp_header.field_start_bit)
-            self.data_entries.append(new_entry)
 
     def map_hash_to_name(self, field_names: dict[int, str]):
         """
         Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
         """
         for key, val in field_names.items():
-            jmp_field: JMPFieldHeader = self.find_field_by_hash(key)
+            jmp_field: JMPFieldHeader = self._find_field_by_hash(key)
             if jmp_field is None:
                 continue
             jmp_field.field_name = val
 
-    def find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
-        return next((jfield for jfield in self.fields if jfield.field_hash == jmp_field_hash), None)
 
-    def find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
-        return next((jfield for jfield in self.fields if jfield.field_name == jmp_field_name), None)
+    def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
+        return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
 
-    def update_file(self):
+
+    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: int | str | float):
+        """Adds a new JMPFieldHeader and a default value to all existing data entries."""
+        if not jmp_field.field_start_byte % 4 == 0:
+            raise JMPFileError("JMPFieldHeader start bytes must be divisible by 4")
+
+        self._fields.append(jmp_field)
+
+        for data_entry in self.data_entries:
+            data_entry[jmp_field] = default_val
+
+
+    def create_new_jmp(self) -> BytesIO:
         """
-        Recreate the file from the fields / data_entries, as new entries / headers could have been added. Keeping the
+        Create a new the file from the fields / data_entries, as new entries / headers could have been added. Keeping the
         original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
         """
-        local_data = BytesIO()
-        new_header_size: int = len(self.fields) * JMP_HEADER_SIZE + 16
+        if not self._validate_all_entries():
+            raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
+                "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
+
+        self._update_list_of_headers()
+
+        local_data: BytesIO = BytesIO()
+        single_entry_size: int = self._calculate_entry_size()
+        new_header_size: int = len(self._fields) * JMP_HEADER_SIZE + 16
         write_s32(local_data, 0, len(self.data_entries)) # Amount of data entries
-        write_s32(local_data, 4, len(self.fields)) # Amount of JMP fields
+        write_s32(local_data, 4, len(self._fields)) # Amount of JMP fields
         write_u32(local_data, 8, new_header_size) # Size of Header Block
-        write_u32(local_data, 12, self.single_entry_size) # Size of a single data entry
+        write_u32(local_data, 12, single_entry_size) # Size of a single data entry
 
         current_offset: int = self._update_headers(local_data)
-        self._update_entries(local_data, current_offset)
+        self._update_entries(local_data, current_offset, single_entry_size)
 
         # JMP Files are then padded with @ if their file size are not divisible by 32.
         curr_length = local_data.seek(0, 2)
         local_data.seek(curr_length)
         if curr_length % 32 > 0:
             write_str(local_data, curr_length, "", curr_length % 32, "@".encode(GC_ENCODING_STR))
-        self.data = local_data
+        return local_data
+
+
+    def _update_list_of_headers(self):
+        self._fields = sorted(list(self.data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
+
 
     def _update_headers(self, local_data: BytesIO) -> int:
-        # Add the individual headers to complete the header block
+        """ Add the individual headers to complete the header block """
         current_offset: int = 16
-        for jmp_header in self.fields:
+        for jmp_header in self._fields:
             write_u32(local_data, current_offset, jmp_header.field_hash)
             write_u32(local_data, current_offset + 4, jmp_header.field_bitmask)
-            write_u16(local_data, current_offset + 8, jmp_header.field_start_bit)
-            write_u8(local_data, current_offset + 10, jmp_header.field_shift_bit)
+            write_u16(local_data, current_offset + 8, jmp_header.field_start_byte)
+            write_u8(local_data, current_offset + 10, jmp_header.field_shift_byte)
             write_u8(local_data, current_offset + 11, jmp_header.field_data_type)
             current_offset += JMP_HEADER_SIZE
 
         return current_offset
 
-    def _update_entries(self, local_data: BytesIO, current_offset: int):
-        # Add the all the data entry lines. Ints have special treatment consideration as they have a bitmask, so
-        # the original data must be read to ensure the unrelated bits are preserved.
+
+    def _update_entries(self, local_data: BytesIO, current_offset: int, entry_size: int):
+        """ Add the all the data entry lines. """
         for line_entry in self.data_entries:
             for key, val in line_entry.items():
                 match key.field_data_type:
                     case JMPType.Int:
-                        old_val = read_u32(self.data, current_offset + key.field_start_bit)
-                        new_val = ((old_val & ~key.field_bitmask) | ((val << key.field_shift_bit) & key.field_bitmask))
-                        write_u32(local_data, current_offset + key.field_start_bit, new_val)
+                        new_val = (val << key.field_shift_byte) | key.field_bitmask
+                        write_u32(local_data, current_offset + key.field_start_byte, new_val)
                     case JMPType.Str:
-                        write_str(local_data, current_offset + key.field_start_bit, val, JMP_STRING_BYTE_LENGTH)
+                        write_str(local_data, current_offset + key.field_start_byte, val, JMP_STRING_BYTE_LENGTH)
                     case JMPType.Flt:
-                        write_float(local_data, current_offset + key.field_start_bit, val)
-            current_offset += self.single_entry_size
+                        write_float(local_data, current_offset + key.field_start_byte, val)
+            current_offset += entry_size
+
+
+    def _calculate_entry_size(self) -> int:
+        """Gets a deepy copy of the JMP header list to avoid """
+        jmp_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
+        sorted_jmp_fields = sorted(jmp_fields, key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
+        return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
+
+
+    def _validate_all_entries(self) -> bool:
+        """
+        Validates all entries have the same JMPFieldHeaders. All of them must have a value, even if its 0.
+        If a data_entry defines a field that is not shared by the others, it will cause parsing errors later.
+        """
+        if self.data_entries is None or len(self.data_entries) == 0:
+            return True
+        headers_list: list[list[JMPFieldHeader]] = []
+        for entry in self.data_entries:
+            headers_list.append(sorted(list(entry.keys()), key=lambda j_field: j_field.field_start_byte))
+        return len(set(headers_list)) == 1
+
+
+def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader]:
+    """
+    Gets the list of all JMP headers that are available in this file. See JMPFieldHeader for exact structure.
+    """
+    current_offset: int = 16
+    field_headers: list[JMPFieldHeader] = []
+
+    for jmp_entry in range(field_count):
+        entry_hash: int = read_u32(header_data, current_offset)
+        entry_bitmask: int = read_u32(header_data, current_offset + 4)
+        entry_start_byte: int = read_u16(header_data, current_offset + 8)
+        entry_shift_byte: int = read_u8(header_data, current_offset + 10)
+        entry_type: int = read_u8(header_data, current_offset + 11)
+        field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_start_byte, entry_shift_byte, entry_type))
+        current_offset += JMP_HEADER_SIZE
+    return field_headers
+
+
+def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header_size: int,
+    field_list: list[JMPFieldHeader]) -> list[JMPEntry]:
+    """
+    Loads all the rows one by one and populates each column's value per row.
+    """
+    data_entries: list[JMPEntry] = []
+
+    for current_entry in range(entry_count):
+        new_entry: JMPEntry = {}
+        data_entry_start: int = (current_entry * entry_size) + header_size
+
+        for jmp_header in field_list:
+            match jmp_header.field_data_type:
+                case JMPType.Int:
+                    current_val: int = read_u32(entry_data, data_entry_start + jmp_header.field_start_byte)
+                    new_entry[jmp_header] = (current_val >> jmp_header.field_shift_byte) & jmp_header.field_bitmask
+                case JMPType.Str:
+                    new_entry[jmp_header] = read_str_until_null_character(entry_data,
+                        data_entry_start + jmp_header.field_start_byte, JMP_STRING_BYTE_LENGTH)
+                case JMPType.Flt:
+                    new_entry[jmp_header] = read_float(entry_data, data_entry_start + jmp_header.field_start_byte)
+        data_entries.append(new_entry)
+
+    return data_entries
+
+
+def _get_field_size(field_type: JMPType) -> int:
+    match field_type:
+        case JMPType.Int | JMPType.Flt:
+            return 4
+        case JMPType.Str:
+            return 32
