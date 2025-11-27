@@ -58,12 +58,15 @@ class JMP:
             where a dictionary maps the key (column) to the value.
     JMP Files also start with 16 bytes that are useful to explain the rest of the structure of the file.
     """
-    fields: list[JMPFieldHeader] = []
     data_entries: list[JMPEntry] = []
+    _fields: list[JMPFieldHeader] = []
 
-    def __init__(self, input_fields: list[JMPFieldHeader], data_entries: list[JMPEntry]):
-        self.fields = input_fields
+    def __init__(self, data_entries: list[JMPEntry]):
         self.data_entries = data_entries
+        if data_entries is None or len(data_entries) == 0:
+            self._fields = []
+        else:
+            self._fields = sorted(list(data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
 
     @classmethod
     def load_jmp(cls, jmp_data: BytesIO):
@@ -96,23 +99,20 @@ class JMP:
                 "expected and could not be parsed properly.")
         entries = _load_entries(jmp_data, data_entry_count, single_entry_size, header_block_size, fields)
 
-        return cls(fields, entries)
+        return cls(entries)
 
     def map_hash_to_name(self, field_names: dict[int, str]):
         """
         Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
         """
         for key, val in field_names.items():
-            jmp_field: JMPFieldHeader = self.find_field_by_hash(key)
+            jmp_field: JMPFieldHeader = self._find_field_by_hash(key)
             if jmp_field is None:
                 continue
             jmp_field.field_name = val
 
-    def find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
-        return next((j_field for j_field in self.fields if j_field.field_hash == jmp_field_hash), None)
-
-    def find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
-        return next((j_field for j_field in self.fields if j_field.field_name == jmp_field_name), None)
+    def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
+        return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
 
     def create_new_jmp(self) -> BytesIO:
         """
@@ -121,9 +121,9 @@ class JMP:
         """
         local_data: BytesIO = BytesIO()
         single_entry_size: int = self._calculate_entry_size()
-        new_header_size: int = len(self.fields) * JMP_HEADER_SIZE + 16
+        new_header_size: int = len(self._fields) * JMP_HEADER_SIZE + 16
         write_s32(local_data, 0, len(self.data_entries)) # Amount of data entries
-        write_s32(local_data, 4, len(self.fields)) # Amount of JMP fields
+        write_s32(local_data, 4, len(self._fields)) # Amount of JMP fields
         write_u32(local_data, 8, new_header_size) # Size of Header Block
         write_u32(local_data, 12, single_entry_size) # Size of a single data entry
 
@@ -140,7 +140,7 @@ class JMP:
     def _update_headers(self, local_data: BytesIO) -> int:
         # Add the individual headers to complete the header block
         current_offset: int = 16
-        for jmp_header in self.fields:
+        for jmp_header in self._fields:
             write_u32(local_data, current_offset, jmp_header.field_hash)
             write_u32(local_data, current_offset + 4, jmp_header.field_bitmask)
             write_u16(local_data, current_offset + 8, jmp_header.field_start_byte)
@@ -165,7 +165,9 @@ class JMP:
             current_offset += entry_size
 
     def _calculate_entry_size(self) -> int:
-        sorted_jmp_fields = sorted(copy.deepcopy(self.fields), key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
+        """Gets a deepy copy of the JMP header list to avoid """
+        jmp_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
+        sorted_jmp_fields = sorted(jmp_fields, key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
         return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
 
 
