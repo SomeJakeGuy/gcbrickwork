@@ -1,21 +1,24 @@
+import copy
 from dataclasses import dataclass
 from enum import IntEnum
 
 from .Bytes_Helper import *
-
 
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
 type JMPEntry = dict[JMPFieldHeader, int | str | float]
 
+
 class JMPFileError(Exception):
     pass
+
 
 class JMPType(IntEnum):
     Int = 0
     Str = 1
     Flt = 2 # Float based values.
+
 
 @dataclass
 class JMPFieldHeader:
@@ -57,7 +60,6 @@ class JMP:
     """
     fields: list[JMPFieldHeader] = []
     data_entries: list[JMPEntry] = []
-    single_entry_size: int = 0 # TODO Need to calculate this.
 
     def __init__(self, input_fields: list[JMPFieldHeader], data_entries: list[JMPEntry]):
         self.fields = input_fields
@@ -122,7 +124,7 @@ class JMP:
         write_s32(local_data, 0, len(self.data_entries)) # Amount of data entries
         write_s32(local_data, 4, len(self.fields)) # Amount of JMP fields
         write_u32(local_data, 8, new_header_size) # Size of Header Block
-        write_u32(local_data, 12, self.single_entry_size) # Size of a single data entry
+        write_u32(local_data, 12, self._calculate_entry_size()) # Size of a single data entry
 
         current_offset: int = self._update_headers(local_data)
         self._update_entries(local_data, current_offset)
@@ -161,6 +163,10 @@ class JMP:
                         write_float(local_data, current_offset + key.field_start_byte, val)
             current_offset += self.single_entry_size
 
+    def _calculate_entry_size(self) -> int:
+        sorted_jmp_fields = sorted(copy.deepcopy(self.fields), key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
+        return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
+
 
 def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader]:
     """
@@ -180,6 +186,7 @@ def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader
         field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_startbyte, entry_shiftbyte, entry_type))
         current_offset += JMP_HEADER_SIZE
     return field_headers
+
 
 def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header_size: int,
     field_list: list[JMPFieldHeader]) -> list[JMPEntry]:
@@ -201,7 +208,15 @@ def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header
                     new_entry[jmp_header] = read_str_until_null_character(entry_data,
                         data_entry_start + jmp_header.field_start_byte, JMP_STRING_BYTE_LENGTH)
                 case JMPType.Flt:
-                    new_entry[jmp_header] = read_float(entry_data,  data_entry_start + jmp_header.field_start_byte)
+                    new_entry[jmp_header] = read_float(entry_data, data_entry_start + jmp_header.field_start_byte)
         data_entries.append(new_entry)
 
     return data_entries
+
+
+def _get_field_size(field_type: JMPType) -> int:
+    match field_type:
+        case JMPType.Int | JMPType.Flt:
+            return 4
+        case JMPType.Str:
+            return 32
