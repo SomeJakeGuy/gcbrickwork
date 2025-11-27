@@ -38,12 +38,12 @@ class JMPFieldHeader:
     field_shift_byte: int = 0
     field_data_type: int = -1
 
-    def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_startbyte: int, jmp_shiftbyte: int, jmp_data_type: int):
+    def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_start_byte: int, jmp_shift_byte: int, jmp_data_type: int):
         self.field_hash = jmp_hash
         self.field_name = str(self.field_hash)
         self.field_bitmask = jmp_bitmask
-        self.field_start_byte = jmp_startbyte
-        self.field_shift_byte = jmp_shiftbyte
+        self.field_start_byte = jmp_start_byte
+        self.field_shift_byte = jmp_shift_byte
         self.field_data_type = jmp_data_type
 
     def __str__(self):
@@ -109,10 +109,10 @@ class JMP:
             jmp_field.field_name = val
 
     def find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
-        return next((jfield for jfield in self.fields if jfield.field_hash == jmp_field_hash), None)
+        return next((j_field for j_field in self.fields if j_field.field_hash == jmp_field_hash), None)
 
     def find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
-        return next((jfield for jfield in self.fields if jfield.field_name == jmp_field_name), None)
+        return next((j_field for j_field in self.fields if j_field.field_name == jmp_field_name), None)
 
     def create_new_jmp(self) -> BytesIO:
         """
@@ -179,12 +179,12 @@ def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader
     for jmp_entry in range(field_count):
         entry_hash: int = read_u32(header_data, current_offset)
         entry_bitmask: int = read_u32(header_data, current_offset + 4)
-        entry_startbyte: int = read_u16(header_data, current_offset + 8)
-        entry_shiftbyte: int = read_u8(header_data, current_offset + 10)
+        entry_start_byte: int = read_u16(header_data, current_offset + 8)
+        entry_shift_byte: int = read_u8(header_data, current_offset + 10)
         entry_type: int = read_u8(header_data, current_offset + 11)
         if not entry_type in JMPType:
             raise ValueError("Unimplemented JMP type detected: " + str(entry_type))
-        field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_startbyte, entry_shiftbyte, entry_type))
+        field_headers.append(JMPFieldHeader(entry_hash, entry_bitmask, entry_start_byte, entry_shift_byte, entry_type))
         current_offset += JMP_HEADER_SIZE
     return field_headers
 
