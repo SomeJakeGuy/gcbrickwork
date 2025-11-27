@@ -138,7 +138,7 @@ class JMP:
         return local_data
 
     def _update_headers(self, local_data: BytesIO) -> int:
-        # Add the individual headers to complete the header block
+        """ Add the individual headers to complete the header block """
         current_offset: int = 16
         for jmp_header in self._fields:
             write_u32(local_data, current_offset, jmp_header.field_hash)
@@ -151,7 +151,7 @@ class JMP:
         return current_offset
 
     def _update_entries(self, local_data: BytesIO, current_offset: int, entry_size: int):
-        # Add the all the data entry lines.
+        """ Add the all the data entry lines. """
         for line_entry in self.data_entries:
             for key, val in line_entry.items():
                 match key.field_data_type:
