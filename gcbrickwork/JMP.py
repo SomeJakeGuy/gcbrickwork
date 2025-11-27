@@ -62,6 +62,10 @@ class JMP:
     _fields: list[JMPFieldHeader] = []
 
     def __init__(self, data_entries: list[JMPEntry]):
+        if not self._validate_all_entries():
+            raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
+                "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
+
         self.data_entries = data_entries
         if data_entries is None or len(data_entries) == 0:
             self._fields = []
@@ -119,6 +123,10 @@ class JMP:
         Create a new the file from the fields / data_entries, as new entries / headers could have been added. Keeping the
         original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
         """
+        if not self._validate_all_entries():
+            raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
+                "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
+
         local_data: BytesIO = BytesIO()
         single_entry_size: int = self._calculate_entry_size()
         new_header_size: int = len(self._fields) * JMP_HEADER_SIZE + 16
@@ -169,6 +177,18 @@ class JMP:
         jmp_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
         sorted_jmp_fields = sorted(jmp_fields, key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
         return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
+
+    def _validate_all_entries(self) -> bool:
+        """
+        Validates all entries have the same JMPFieldHeaders. All of them must have a value, even if its 0.
+        If a data_entry defines a field that is not shared by the others, it will cause parsing errors later.
+        """
+        if self.data_entries is None or len(self.data_entries) == 0:
+            return True
+        headers_list: list[list[JMPFieldHeader]] = []
+        for entry in self.data_entries:
+            headers_list.append(sorted(list(entry.keys()), key=lambda j_field: j_field.field_start_byte))
+        return len(set(headers_list)) == 1
 
 
 def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader]:
