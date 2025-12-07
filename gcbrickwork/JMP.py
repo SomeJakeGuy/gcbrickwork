@@ -255,7 +255,7 @@ class JMP:
 
 
     def _calculate_entry_size(self) -> int:
-        """Gets a deepy copy of the JMP header list to avoid """
+        """Gets a deepy copy of the JMP header list to avoid messing with the actual order of fields."""
         jmp_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
         sorted_jmp_fields = sorted(jmp_fields, key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
         return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
