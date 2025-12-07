@@ -74,6 +74,11 @@ class JMP:
             self._update_list_of_headers()
 
 
+    @property
+    def fields(self) -> list[JMPFieldHeader]:
+        return self._fields
+
+
     @classmethod
     def load_jmp(cls, jmp_data: BytesIO):
         """
