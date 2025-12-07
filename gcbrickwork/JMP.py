@@ -222,6 +222,7 @@ class JMP:
 
 
     def _update_list_of_headers(self):
+        """Using the first data entry, re-build the list of JMP header fields."""
         self._fields = sorted(list(self.data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
 
 
