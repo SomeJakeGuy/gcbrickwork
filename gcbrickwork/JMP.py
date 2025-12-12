@@ -7,7 +7,8 @@ from .Bytes_Helper import *
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
-type JMPEntry = dict[JMPFieldHeader, int | str | float]
+type JMPValue = int | str | float
+type JMPEntry = dict[JMPFieldHeader, JMPValue]
 
 
 class JMPFileError(Exception):
@@ -74,6 +75,11 @@ class JMP:
             self._update_list_of_headers()
 
 
+    @property
+    def fields(self) -> list[JMPFieldHeader]:
+        return self._fields
+
+
     @classmethod
     def load_jmp(cls, jmp_data: BytesIO):
         """
@@ -123,7 +129,7 @@ class JMP:
         return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
 
 
-    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: int | str | float):
+    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
         """Adds a new JMPFieldHeader and a default value to all existing data entries."""
         if not jmp_field.field_start_byte % 4 == 0:
             raise JMPFileError("JMPFieldHeader start bytes must be divisible by 4")
@@ -132,6 +138,58 @@ class JMP:
 
         for data_entry in self.data_entries:
             data_entry[jmp_field] = default_val
+
+
+    def check_header_name_has_value(self, jmp_entry: JMPEntry, field_name: str, field_value: JMPValue) -> bool:
+        """With the given jmp_entry, searches each header name to see if the name and value match."""
+        if not jmp_entry in self.data_entries:
+            raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
+
+        return any((jmp_field, jmp_value) for (jmp_field, jmp_value) in jmp_entry.items() if
+                   jmp_field.field_name == field_name and jmp_entry[jmp_field] == field_value)
+
+
+    def check_header_hash_has_value(self, jmp_entry: JMPEntry, field_hash: int, field_value: JMPValue) -> bool:
+        """With the given jmp_entry, searches each header hash to see if the name and value match."""
+        if not jmp_entry in self.data_entries:
+            raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
+
+        return any((jmp_field, jmp_value) for (jmp_field, jmp_value) in jmp_entry.items() if
+                   jmp_field.field_hash == field_hash and jmp_entry[jmp_field] == field_value)
+
+
+    def get_jmp_header_name_value(self, jmp_entry: JMPEntry, field_name: str) -> JMPValue:
+        """With the given jmp_entry, returns the current value from the provided field name"""
+        if not jmp_entry in self.data_entries:
+            raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
+
+        return jmp_entry[next(j_field for j_field in jmp_entry.keys() if j_field.field_name == field_name)]
+
+
+    def get_jmp_header_hash_value(self, jmp_entry: JMPEntry, field_hash: int) -> JMPValue:
+        """With the given jmp_entry, returns the current value from the provided field name"""
+        if not jmp_entry in self.data_entries:
+            raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
+
+        return jmp_entry[next(j_field for j_field in jmp_entry.keys() if j_field.field_hash == field_hash)]
+
+
+    def update_jmp_header_name_value(self, jmp_entry: JMPEntry, field_name: str, field_value: JMPValue):
+        """Updates a JMP header with the provided value in the given JMPEntry"""
+        if not jmp_entry in self.data_entries:
+            raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
+
+        jmp_field = next(j_field for j_field in jmp_entry.keys() if j_field.field_name == field_name)
+        jmp_entry[jmp_field] = field_value
+
+
+    def update_jmp_header_hash_value(self, jmp_entry: JMPEntry, field_hash: int, field_value: JMPValue):
+        """Updates a JMP header with the provided value in the given JMPEntry"""
+        if not jmp_entry in self.data_entries:
+            raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
+
+        jmp_field = next(j_field for j_field in jmp_entry.keys() if j_field.field_hash == field_hash)
+        jmp_entry[jmp_field] = field_value
 
 
     def create_new_jmp(self) -> BytesIO:
@@ -165,6 +223,7 @@ class JMP:
 
 
     def _update_list_of_headers(self):
+        """Using the first data entry, re-build the list of JMP header fields."""
         self._fields = sorted(list(self.data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
 
 
@@ -198,7 +257,7 @@ class JMP:
 
 
     def _calculate_entry_size(self) -> int:
-        """Gets a deepy copy of the JMP header list to avoid """
+        """Gets a deepy copy of the JMP header list to avoid messing with the actual order of fields."""
         jmp_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
         sorted_jmp_fields = sorted(jmp_fields, key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
         return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
