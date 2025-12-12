@@ -7,7 +7,8 @@ from .Bytes_Helper import *
 JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
-type JMPEntry = dict[JMPFieldHeader, int | str | float]
+type JMPValue = int | str | float
+type JMPEntry = dict[JMPFieldHeader, JMPValue]
 
 
 class JMPFileError(Exception):
@@ -128,7 +129,7 @@ class JMP:
         return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
 
 
-    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: int | str | float):
+    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
         """Adds a new JMPFieldHeader and a default value to all existing data entries."""
         if not jmp_field.field_start_byte % 4 == 0:
             raise JMPFileError("JMPFieldHeader start bytes must be divisible by 4")
@@ -139,7 +140,7 @@ class JMP:
             data_entry[jmp_field] = default_val
 
 
-    def check_header_name_has_value(self, jmp_entry: JMPEntry, field_name: str, field_value: int | str | float) -> bool:
+    def check_header_name_has_value(self, jmp_entry: JMPEntry, field_name: str, field_value: JMPValue) -> bool:
         """With the given jmp_entry, searches each header name to see if the name and value match."""
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
@@ -148,7 +149,7 @@ class JMP:
                    jmp_field.field_name == field_name and jmp_entry[jmp_field] == field_value)
 
 
-    def check_header_hash_has_value(self, jmp_entry: JMPEntry, field_hash: int, field_value: int | str | float) -> bool:
+    def check_header_hash_has_value(self, jmp_entry: JMPEntry, field_hash: int, field_value: JMPValue) -> bool:
         """With the given jmp_entry, searches each header hash to see if the name and value match."""
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
@@ -157,7 +158,7 @@ class JMP:
                    jmp_field.field_hash == field_hash and jmp_entry[jmp_field] == field_value)
 
 
-    def get_jmp_header_name_value(self, jmp_entry: JMPEntry, field_name: str) -> int | str | float:
+    def get_jmp_header_name_value(self, jmp_entry: JMPEntry, field_name: str) -> JMPValue:
         """With the given jmp_entry, returns the current value from the provided field name"""
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
@@ -165,7 +166,7 @@ class JMP:
         return jmp_entry[next(j_field for j_field in jmp_entry.keys() if j_field.field_name == field_name)]
 
 
-    def get_jmp_header_hash_value(self, jmp_entry: JMPEntry, field_hash: int) -> int | str | float:
+    def get_jmp_header_hash_value(self, jmp_entry: JMPEntry, field_hash: int) -> JMPValue:
         """With the given jmp_entry, returns the current value from the provided field name"""
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
@@ -173,7 +174,7 @@ class JMP:
         return jmp_entry[next(j_field for j_field in jmp_entry.keys() if j_field.field_hash == field_hash)]
 
 
-    def update_jmp_header_name_value(self, jmp_entry: JMPEntry, field_name: str, field_value: int | str | float):
+    def update_jmp_header_name_value(self, jmp_entry: JMPEntry, field_name: str, field_value: JMPValue):
         """Updates a JMP header with the provided value in the given JMPEntry"""
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
@@ -182,7 +183,7 @@ class JMP:
         jmp_entry[jmp_field] = field_value
 
 
-    def update_jmp_header_hash_value(self, jmp_entry: JMPEntry, field_hash: int, field_value: int | str | float):
+    def update_jmp_header_hash_value(self, jmp_entry: JMPEntry, field_hash: int, field_value: JMPValue):
         """Updates a JMP header with the provided value in the given JMPEntry"""
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
