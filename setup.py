@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="gcbrickwork",
     packages=setuptools.find_packages(),
-    version="2.1.1",
+    version="2.1.2",
     license="MIT",
     author="Some Jake Guy",
     author_email="somejakeguy@gmail.com",
