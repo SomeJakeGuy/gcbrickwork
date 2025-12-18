@@ -82,12 +82,14 @@ def read_str_until_null_character(data: BytesIO, offset: int, max_length: int) -
         raise ByteHelperError(f"Offset {str(offset)} + Length {str(max_length)} is longer than the data size {str(data_length)}.")
 
     temp_offset = offset
-    while temp_offset < max_length:
+    while temp_offset < data_length:
         data.seek(temp_offset)
         char = data.read(1)
         if char == b"\0":
             break
         temp_offset += 1
+        if (temp_offset - offset) == max_length:
+            break
 
     data.seek(offset)
     string = data.read(temp_offset-offset).decode(GC_ENCODING_STR)
