@@ -50,6 +50,9 @@ class JMPFieldHeader:
     def __str__(self):
         return str(self.__dict__)
 
+    def __hash__(self):
+        return self.field_hash
+
 
 class JMP:
     """
