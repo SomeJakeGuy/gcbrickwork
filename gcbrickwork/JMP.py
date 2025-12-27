@@ -136,6 +136,11 @@ class JMP:
         return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
 
 
+    def _find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
+        """Finds a specific JMP field by its field name. Can return None as well if no field found."""
+        return next((j_field for j_field in self._fields if j_field.field_name == jmp_field_name), None)
+
+
     def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
         """Adds a new JMPFieldHeader and a default value to all existing data entries."""
         if not jmp_field.field_start_byte % 4 == 0:
