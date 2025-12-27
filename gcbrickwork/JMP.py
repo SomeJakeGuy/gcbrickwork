@@ -12,10 +12,12 @@ type JMPEntry = dict[JMPFieldHeader, JMPValue]
 
 
 class JMPFileError(Exception):
+    """Used to return various JMP File related errors."""
     pass
 
 
 class JMPType(IntEnum):
+    """Indicates the type of field the Field header is."""
     Int = 0
     Str = 1
     Flt = 2 # Float based values.
@@ -80,6 +82,7 @@ class JMP:
 
     @property
     def fields(self) -> list[JMPFieldHeader]:
+        """Returns the list of JMP Field Headers that are defined in this file."""
         return self._fields
 
 
@@ -129,6 +132,7 @@ class JMP:
 
 
     def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
+        """Finds a specific JMP field by its hash value. Can return None as well if no field found."""
         return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
 
 
