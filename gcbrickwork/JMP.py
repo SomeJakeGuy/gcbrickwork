@@ -246,7 +246,7 @@ class JMP:
         curr_length = local_data.seek(0, 2)
         local_data.seek(curr_length)
         if curr_length % 32 > 0:
-            write_str(local_data, curr_length, "", curr_length % 32, "@".encode(GC_ENCODING_STR))
+            write_str(local_data, curr_length, "", 32 - (curr_length % 32), "@".encode(GC_ENCODING_STR))
         return local_data
 
 
