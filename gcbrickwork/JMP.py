@@ -276,7 +276,7 @@ class JMP:
         headers_list: list[list[JMPFieldHeader]] = []
         for entry in self.data_entries:
             headers_list.append(sorted(list(entry.keys()), key=lambda j_field: j_field.field_start_byte))
-        return len(set(headers_list)) == 1
+        return all(sublist == headers_list[0] for sublist in headers_list)
 
 
 def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader]:
