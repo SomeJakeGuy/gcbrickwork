@@ -270,7 +270,8 @@ class JMP:
 
 
     def _update_entries(self, local_data: BytesIO, current_offset: int, entry_size: int):
-        """ Add the all the data entry lines. """
+        """ Add the all the data entry lines. Integers with bitmask 0xFFFFFFFF will write their values directly,
+        while other integers will need to shift/mask their values accordingly."""
         for line_entry in self.data_entries:
             for key, val in line_entry.items():
                 match key.field_data_type:
