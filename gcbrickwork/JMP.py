@@ -278,7 +278,11 @@ class JMP:
                         if key.field_bitmask == 0xFFFFFFFF: # Indicates the value should be written directly without changes.
                             new_val = val
                         else:
-                            new_val = (val << key.field_shift_byte) | key.field_bitmask
+                            if not local_data.seek(0, 2) > current_offset + key.field_start_byte:
+                                start_val: int = 0
+                            else:
+                                start_val: int = read_u32(local_data, current_offset + key.field_start_byte)
+                            new_val: int = start_val | ((val << key.field_shift_byte) & key.field_bitmask)
                         write_u32(local_data, current_offset + key.field_start_byte, new_val)
                     case JMPType.Str:
                         write_str(local_data, current_offset + key.field_start_byte, val, JMP_STRING_BYTE_LENGTH)
