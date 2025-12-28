@@ -104,9 +104,9 @@ class JMP:
         single_entry_size: int = read_u32(jmp_data, 12)
 
         # Load all headers of this file
-        header_block_bytes: bytes = jmp_data.read(header_block_size - 16) # Field details start after the above 16 bytes
-        if (len(header_block_bytes) % JMP_HEADER_SIZE != 0 or not (len(header_block_bytes) / JMP_HEADER_SIZE) ==
-            field_count or header_block_size > original_file_size):
+        header_size: int = header_block_size - 16 # JMP Field details start after the above 16 bytes
+        if (header_size % JMP_HEADER_SIZE != 0 or not (header_size / JMP_HEADER_SIZE) == field_count or
+            header_block_size > original_file_size):
             raise JMPFileError("When trying to read the header block of the JMP file, the size was bigger than " +
                 "expected and could not be parsed properly.")
         fields = _load_headers(jmp_data, field_count)
