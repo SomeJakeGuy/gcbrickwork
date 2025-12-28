@@ -275,7 +275,10 @@ class JMP:
             for key, val in line_entry.items():
                 match key.field_data_type:
                     case JMPType.Int:
-                        new_val = (val << key.field_shift_byte) | key.field_bitmask
+                        if key.field_bitmask == 0xFFFFFFFF: # Indicates the value should be written directly without changes.
+                            new_val = val
+                        else:
+                            new_val = (val << key.field_shift_byte) | key.field_bitmask
                         write_u32(local_data, current_offset + key.field_start_byte, new_val)
                     case JMPType.Str:
                         write_str(local_data, current_offset + key.field_start_byte, val, JMP_STRING_BYTE_LENGTH)
