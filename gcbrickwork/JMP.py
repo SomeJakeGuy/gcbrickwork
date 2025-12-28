@@ -12,10 +12,12 @@ type JMPEntry = dict[JMPFieldHeader, JMPValue]
 
 
 class JMPFileError(Exception):
+    """Used to return various JMP File related errors."""
     pass
 
 
 class JMPType(IntEnum):
+    """Indicates the type of field the Field header is."""
     Int = 0
     Str = 1
     Flt = 2 # Float based values.
@@ -80,6 +82,7 @@ class JMP:
 
     @property
     def fields(self) -> list[JMPFieldHeader]:
+        """Returns the list of JMP Field Headers that are defined in this file."""
         return self._fields
 
 
@@ -101,9 +104,9 @@ class JMP:
         single_entry_size: int = read_u32(jmp_data, 12)
 
         # Load all headers of this file
-        header_block_bytes: bytes = jmp_data.read(header_block_size - 16) # Field details start after the above 16 bytes
-        if (len(header_block_bytes) % JMP_HEADER_SIZE != 0 or not (len(header_block_bytes) / JMP_HEADER_SIZE) ==
-            field_count or header_block_size > original_file_size):
+        header_size: int = header_block_size - 16 # JMP Field details start after the above 16 bytes
+        if (header_size % JMP_HEADER_SIZE != 0 or not (header_size / JMP_HEADER_SIZE) == field_count or
+            header_block_size > original_file_size):
             raise JMPFileError("When trying to read the header block of the JMP file, the size was bigger than " +
                 "expected and could not be parsed properly.")
         fields = _load_headers(jmp_data, field_count)
@@ -129,7 +132,13 @@ class JMP:
 
 
     def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
+        """Finds a specific JMP field by its hash value. Can return None as well if no field found."""
         return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
+
+
+    def _find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
+        """Finds a specific JMP field by its field name. Can return None as well if no field found."""
+        return next((j_field for j_field in self._fields if j_field.field_name == jmp_field_name), None)
 
 
     def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
@@ -166,7 +175,15 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        return jmp_entry[next(j_field for j_field in jmp_entry.keys() if j_field.field_name == field_name)]
+        jmp_field: JMPFieldHeader = self._find_field_by_name(field_name)
+        if jmp_field is None:
+            raise JMPFileError(f"No JMP field with name '{field_name}' was found in the provided entry.")
+
+        if not jmp_field in self._fields:
+            raise JMPFileError("Although a JMP field was found for this entry, it does not exist in the list " +
+                "of fields for the JMP file. Please ensure to properly add this field via the 'add_jmp_header' function")
+
+        return jmp_entry[jmp_field]
 
 
     def get_jmp_header_hash_value(self, jmp_entry: JMPEntry, field_hash: int) -> JMPValue:
@@ -174,7 +191,15 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        return jmp_entry[next(j_field for j_field in jmp_entry.keys() if j_field.field_hash == field_hash)]
+        jmp_field: JMPFieldHeader = self._find_field_by_hash(field_hash)
+        if jmp_field is None:
+            raise JMPFileError(f"No JMP field with hash '{str(field_hash)}' was found in the provided entry.")
+
+        if not jmp_field in self._fields:
+            raise JMPFileError("Although a JMP field was found for this entry, it does not exist in the list " +
+                "of fields for the JMP file. Please ensure to properly add this field via the 'add_jmp_header' function")
+
+        return jmp_entry[jmp_field]
 
 
     def update_jmp_header_name_value(self, jmp_entry: JMPEntry, field_name: str, field_value: JMPValue):
@@ -182,7 +207,7 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        jmp_field = next(j_field for j_field in jmp_entry.keys() if j_field.field_name == field_name)
+        jmp_field = self._find_field_by_name(field_name)
         jmp_entry[jmp_field] = field_value
 
 
@@ -191,7 +216,7 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        jmp_field = next(j_field for j_field in jmp_entry.keys() if j_field.field_hash == field_hash)
+        jmp_field = self._find_field_by_hash(field_hash)
         jmp_entry[jmp_field] = field_value
 
 
@@ -221,7 +246,7 @@ class JMP:
         curr_length = local_data.seek(0, 2)
         local_data.seek(curr_length)
         if curr_length % 32 > 0:
-            write_str(local_data, curr_length, "", curr_length % 32, "@".encode(GC_ENCODING_STR))
+            write_str(local_data, curr_length, "", 32 - (curr_length % 32), "@".encode(GC_ENCODING_STR))
         return local_data
 
 
@@ -245,12 +270,20 @@ class JMP:
 
 
     def _update_entries(self, local_data: BytesIO, current_offset: int, entry_size: int):
-        """ Add the all the data entry lines. """
+        """ Add the all the data entry lines. Integers with bitmask 0xFFFFFFFF will write their values directly,
+        while other integers will need to shift/mask their values accordingly."""
         for line_entry in self.data_entries:
             for key, val in line_entry.items():
                 match key.field_data_type:
                     case JMPType.Int:
-                        new_val = (val << key.field_shift_byte) | key.field_bitmask
+                        if key.field_bitmask == 0xFFFFFFFF: # Indicates the value should be written directly without changes.
+                            new_val = val
+                        else:
+                            if not local_data.seek(0, 2) > current_offset + key.field_start_byte:
+                                start_val: int = 0
+                            else:
+                                start_val: int = read_u32(local_data, current_offset + key.field_start_byte)
+                            new_val: int = start_val | ((val << key.field_shift_byte) & key.field_bitmask)
                         write_u32(local_data, current_offset + key.field_start_byte, new_val)
                     case JMPType.Str:
                         write_str(local_data, current_offset + key.field_start_byte, val, JMP_STRING_BYTE_LENGTH)
@@ -276,7 +309,7 @@ class JMP:
         headers_list: list[list[JMPFieldHeader]] = []
         for entry in self.data_entries:
             headers_list.append(sorted(list(entry.keys()), key=lambda j_field: j_field.field_start_byte))
-        return len(set(headers_list)) == 1
+        return all(sublist == headers_list[0] for sublist in headers_list)
 
 
 def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader]:
