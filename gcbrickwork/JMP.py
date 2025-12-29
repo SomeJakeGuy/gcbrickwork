@@ -345,7 +345,7 @@ def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header
             match jmp_header.field_data_type:
                 case JMPType.Int:
                     current_val: int = read_u32(entry_data, data_entry_start + jmp_header.field_start_byte)
-                    new_entry[jmp_header] = (current_val >> jmp_header.field_shift_byte) & jmp_header.field_bitmask
+                    new_entry[jmp_header] = (current_val & jmp_header.field_bitmask) >> jmp_header.field_shift_byte
                 case JMPType.Str:
                     new_entry[jmp_header] = read_str_until_null_character(entry_data,
                         data_entry_start + jmp_header.field_start_byte, JMP_STRING_BYTE_LENGTH)
