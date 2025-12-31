@@ -182,6 +182,7 @@ class JMP:
 
 
     def find_jmp_header(self, field_key: str | int) -> JMPFieldHeader | None:
+        """Finds a JMPFieldHeader based on either the field's name or its hash."""
         if isinstance(field_key, str):
             return next((j_field for j_field in self._fields if j_field.field_name == field_key), None)
         elif isinstance(field_key, int):
