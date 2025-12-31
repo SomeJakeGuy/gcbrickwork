@@ -8,7 +8,53 @@ JMP_HEADER_SIZE: int = 12
 JMP_STRING_BYTE_LENGTH = 32
 
 type JMPValue = int | str | float
-type JMPEntry = dict[JMPFieldHeader, JMPValue]
+
+
+class JMPEntry(dict["JMPFieldHeader", JMPValue]):
+    """
+    A JMP entry (row) that allows accessing fields by string name or JMPFieldHeader.
+    This is a simple wrapper around a dict to allow getting values by string instead of having to use JMPFieldHeaders.
+    """
+    def _find_field_by_hash(self, jmp_field_hash: int) -> "JMPFieldHeader | None":
+        """Finds a specific JMP field by its hash value. Can return None as well if no field found."""
+        return next((field for field in self.keys() if field.field_hash == jmp_field_hash), None)
+
+
+    def _find_field_by_name(self, jmp_field_name: str) -> "JMPFieldHeader | None":
+        """Finds a specific JMP field by its field name. Can return None as well if no field found."""
+        return next((field for field in self.keys() if field.field_name == jmp_field_name), None)
+
+
+    def __getitem__(self, key: "str | int | JMPFieldHeader") -> JMPValue:
+        """Gets a specific JMPHeaderField by its name, hash, or field directly."""
+        if isinstance(key, str):
+            field = self._find_field_by_name(key)
+        elif isinstance(key, int):
+            field = self._find_field_by_hash(key)
+        elif isinstance(key, JMPFieldHeader):
+            field = key
+        else:
+            raise ValueError(f"Cannot index JMPEntry with value of type {type(key)}")
+
+        if field is None:
+            raise KeyError(f"No JMPHeaderField was found with name/hash '{key}'")
+        return super().__getitem__(field)
+
+
+    def __setitem__(self, key: "str | int | JMPFieldHeader", value: JMPValue):
+        """Updates a specific JMPHeaderField by its name, hash, or field directly to the provided value."""
+        if isinstance(key, str):
+            field = self._find_field_by_name(key)
+        elif isinstance(key, int):
+            field = self._find_field_by_hash(key)
+        elif isinstance(key, JMPFieldHeader):
+            field = key
+        else:
+            raise ValueError(f"Cannot index JMPEntry with value of type {type(key)}")
+
+        if field is None:
+            raise KeyError(f"No JMPHeaderField was found with name/hash '{key}'")
+        super().__setitem__(field, value)
 
 
 class JMPFileError(Exception):
@@ -41,6 +87,7 @@ class JMPFieldHeader:
     field_shift_byte: int = 0
     field_data_type: JMPType = None
 
+
     def __init__(self, jmp_hash: int, jmp_bitmask: int, jmp_start_byte: int, jmp_shift_byte: int, jmp_data_type: int):
         self.field_hash = jmp_hash
         self.field_name = str(self.field_hash)
@@ -49,8 +96,10 @@ class JMPFieldHeader:
         self.field_shift_byte = jmp_shift_byte
         self.field_data_type = JMPType(jmp_data_type)
 
+
     def __str__(self):
         return str(self.__dict__)
+
 
     def __hash__(self):
         return self.field_hash
@@ -338,7 +387,7 @@ def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header
     data_entries: list[JMPEntry] = []
 
     for current_entry in range(entry_count):
-        new_entry: JMPEntry = {}
+        new_entry: JMPEntry = JMPEntry()
         data_entry_start: int = (current_entry * entry_size) + header_size
 
         for jmp_header in field_list:
