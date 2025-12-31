@@ -322,13 +322,11 @@ class JMP:
 
     def create_new_jmp(self) -> BytesIO:
         """
-        Create a new the file from the fields / _data_entries, as new entries / headers could have been added. Keeping the
-        original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
+        Create a new the file from the fields / _data_entries, as new entries / headers could have been added.
+        Keeping the original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
         """
         self.validate_jmp_fields()
         self.validate_all_jmp_entries()
-
-        self._update_list_of_headers()
 
         local_data: BytesIO = BytesIO()
         single_entry_size: int = self._calculate_entry_size()
@@ -347,11 +345,6 @@ class JMP:
         if curr_length % 32 > 0:
             write_str(local_data, curr_length, "", 32 - (curr_length % 32), "@".encode(GC_ENCODING_STR))
         return local_data
-
-
-    def _update_list_of_headers(self):
-        """Using the first data entry, re-build the list of JMP header fields."""
-        self._fields = sorted(list(self._data_entries[0].keys()), key=lambda jmp_field: jmp_field.field_start_byte)
 
 
     def _update_headers(self, local_data: BytesIO) -> int:
