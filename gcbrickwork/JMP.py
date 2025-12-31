@@ -15,46 +15,30 @@ class JMPEntry(dict["JMPFieldHeader", JMPValue]):
     A JMP entry (row) that allows accessing fields by string name or JMPFieldHeader.
     This is a simple wrapper around a dict to allow getting values by string instead of having to use JMPFieldHeaders.
     """
-    def _find_field_by_hash(self, jmp_field_hash: int) -> "JMPFieldHeader | None":
-        """Finds a specific JMP field by its hash value. Can return None as well if no field found."""
-        return next((field for field in self.keys() if field.field_hash == jmp_field_hash), None)
+    def _find_entry_field(self, jmp_field: "int | str | JMPFieldHeader") -> "JMPFieldHeader":
+        """Finds a specific JMP field by its hash value or field name. Can return None as well if no field found."""
+        if isinstance(jmp_field, str):
+            field: JMPFieldHeader = next((field for field in self.keys() if field.field_name == jmp_field), None)
+        elif isinstance(jmp_field, int):
+            field: JMPFieldHeader = next((field for field in self.keys() if field.field_hash == jmp_field), None)
+        elif isinstance(jmp_field, JMPFieldHeader):
+            field = jmp_field
+        else:
+            raise ValueError(f"Cannot index JMPEntry with value of type {type(jmp_field)}")
 
-
-    def _find_field_by_name(self, jmp_field_name: str) -> "JMPFieldHeader | None":
-        """Finds a specific JMP field by its field name. Can return None as well if no field found."""
-        return next((field for field in self.keys() if field.field_name == jmp_field_name), None)
+        if field is None:
+            raise KeyError(f"No JMPHeaderField was found with name/hash '{str(jmp_field)}'")
+        return field
 
 
     def __getitem__(self, key: "str | int | JMPFieldHeader") -> JMPValue:
         """Gets a specific JMPHeaderField by its name, hash, or field directly."""
-        if isinstance(key, str):
-            field = self._find_field_by_name(key)
-        elif isinstance(key, int):
-            field = self._find_field_by_hash(key)
-        elif isinstance(key, JMPFieldHeader):
-            field = key
-        else:
-            raise ValueError(f"Cannot index JMPEntry with value of type {type(key)}")
-
-        if field is None:
-            raise KeyError(f"No JMPHeaderField was found with name/hash '{str(key)}'")
-        return super().__getitem__(field)
+        return super().__getitem__(self._find_entry_field(key))
 
 
     def __setitem__(self, key: "str | int | JMPFieldHeader", value: JMPValue):
         """Updates a specific JMPHeaderField by its name, hash, or field directly to the provided value."""
-        if isinstance(key, str):
-            field = self._find_field_by_name(key)
-        elif isinstance(key, int):
-            field = self._find_field_by_hash(key)
-        elif isinstance(key, JMPFieldHeader):
-            field = key
-        else:
-            raise ValueError(f"Cannot index JMPEntry with value of type {type(key)}")
-
-        if field is None:
-            raise KeyError(f"No JMPHeaderField was found with name/hash '{str(key)}'")
-        super().__setitem__(field, value)
+        super().__setitem__(self._find_entry_field(key), value)
 
 
 class JMPFileError(Exception):
