@@ -139,6 +139,38 @@ class JMP:
         return self._fields
 
 
+    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
+        """Adds a new JMPFieldHeader and a default value to all existing data entries."""
+        if not jmp_field.field_start_byte % 4 == 0:
+            raise JMPFileError("JMPFieldHeader start bytes must be divisible by 4")
+
+        self._fields.append(jmp_field)
+
+        for data_entry in self.data_entries:
+            data_entry[jmp_field] = default_val
+
+
+    def map_hash_to_name(self, field_names: dict[int, str]):
+        """
+        Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
+        """
+        for key, val in field_names.items():
+            jmp_field: JMPFieldHeader = self._find_field_by_hash(key)
+            if jmp_field is None:
+                continue
+            jmp_field.field_name = val
+
+
+    def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
+        """Finds a specific JMP field by its hash value. Can return None as well if no field found."""
+        return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
+
+
+    def _find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
+        """Finds a specific JMP field by its field name. Can return None as well if no field found."""
+        return next((j_field for j_field in self._fields if j_field.field_name == jmp_field_name), None)
+
+
     @classmethod
     def load_jmp(cls, jmp_data: BytesIO):
         """
@@ -171,39 +203,6 @@ class JMP:
         entries = _load_entries(jmp_data, data_entry_count, single_entry_size, header_block_size, fields)
 
         return cls(entries)
-
-
-    def map_hash_to_name(self, field_names: dict[int, str]):
-        """
-        Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
-        """
-        for key, val in field_names.items():
-            jmp_field: JMPFieldHeader = self._find_field_by_hash(key)
-            if jmp_field is None:
-                continue
-            jmp_field.field_name = val
-
-
-    def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
-        """Finds a specific JMP field by its hash value. Can return None as well if no field found."""
-        return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
-
-
-    def _find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
-        """Finds a specific JMP field by its field name. Can return None as well if no field found."""
-        return next((j_field for j_field in self._fields if j_field.field_name == jmp_field_name), None)
-
-
-    def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
-        """Adds a new JMPFieldHeader and a default value to all existing data entries."""
-        if not jmp_field.field_start_byte % 4 == 0:
-            raise JMPFileError("JMPFieldHeader start bytes must be divisible by 4")
-
-        self._fields.append(jmp_field)
-
-        for data_entry in self.data_entries:
-            data_entry[jmp_field] = default_val
-
 
     def check_header_name_has_value(self, jmp_entry: JMPEntry, field_name: str, field_value: JMPValue) -> bool:
         """With the given jmp_entry, searches each header name to see if the name and value match."""
