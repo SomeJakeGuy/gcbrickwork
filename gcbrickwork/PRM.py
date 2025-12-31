@@ -180,5 +180,17 @@ class PRM:
         return local_data
 
 
-    def get_entry(self, field_name: str) -> PRMFieldEntry:
-        return next(entry for entry in self.data_entries if entry.field_name == field_name)
+    def get_prm_entry(self, prm_field: str | int) -> PRMFieldEntry:
+        """Gets a PRMFieldEntry based on a provided field name/hash."""
+        if isinstance(prm_field, str):
+            return next(prm_entry for prm_entry in self.data_entries if prm_entry.field_name == prm_field)
+        elif isinstance(prm_field, int):
+            return next(prm_entry for prm_entry in self.data_entries if prm_entry.field_hash == prm_field)
+        else:
+            raise ValueError(f"Cannot index PRMFieldEntry with value of type {type(prm_field)}")
+
+
+    def update_prm_entry(self, prm_field: str | int, prm_value: PRMValue):
+        """Updates a PRMFieldEntry based on a provided field/value."""
+        prm_entry: PRMFieldEntry = self.get_prm_entry(prm_field)
+        prm_entry.field_value = prm_value
