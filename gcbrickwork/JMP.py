@@ -209,6 +209,50 @@ class JMP:
         self._data_entries.remove(entry)
 
 
+    def add_jmp_entry(self, jmp_entry: dict[str | int, JMPValue] | JMPEntry):
+        """Adds a new data entry using field names or hashes as keys with complete field validation."""
+        if not self._fields:
+            raise JMPFileError("Cannot add a JMPEntry to the JMP with no defined fields.")
+        elif jmp_entry is None or len(jmp_entry.keys()) == 0:
+            raise JMPFileError("Cannot add an empty JMPEntry to the JMP.")
+
+        self._data_entries.append(self.validate_jmp_entry(jmp_entry))
+
+
+    def validate_jmp_entry(self, entry_data: dict[str | int, JMPValue] | JMPEntry) -> JMPEntry:
+        """Validates the current JMPEntry does not have invalid fields, missing required fields, and correct values.
+        If a required field (which is a field defined in the self.fields), a JMPFIleError is thrown."""
+        entry_to_use: JMPEntry = JMPEntry()
+        invalid_fields: list[str] = []
+        for key, val in entry_data.items():
+            if isinstance(key, str) or isinstance(key, int):
+                jmp_field: JMPFieldHeader = self.find_jmp_header(key)
+                if jmp_field is None:
+                    invalid_fields.append(f"'{str(key)}' {"(name)" if isinstance(key, str) else "(hash)"}")
+                    continue
+
+                entry_to_use[jmp_field] = val
+            elif isinstance(key, JMPFieldHeader):
+                if not key in self._fields:
+                    invalid_fields.append(f"(JMPFieldHeader) Name: '{key.field_name}'; Hash: '{str(key.field_hash)}'")
+                    continue
+
+                entry_to_use[key] = val
+            else:
+                raise JMPFileError("Entry keys must be field names (str) or field hashes (int)")
+
+        if invalid_fields:
+            raise JMPFileError(f"Invalid fields not found in JMP file schema: {', '.join(invalid_fields)}")
+
+        # Validate the entry has all required fields
+        missing_fields = set(self._fields) - set(entry_to_use.keys())
+        if missing_fields:
+            raise JMPFileError(f"Missing required JMP: {', '.join([f"(JMPFieldHeader) Name: '{f.field_name}'; " +
+                f"Hash: '{str(f.field_hash)}'" for f in missing_fields])}")
+
+        return entry_to_use
+
+
     @classmethod
     def load_jmp(cls, jmp_data: BytesIO):
         """
