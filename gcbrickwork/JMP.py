@@ -137,7 +137,9 @@ class JMPFieldHeader:
 class JMP:
     """
     JMP Files are table-structured format files that contain a giant header block and data entry block.
-        The header block contains the definition of all field headers (columns) and field level data
+    These files remark a similar structure to modern day data tables.
+        The header block contains the definition of all field headers (columns) and field data
+            Definition of these headers does not matter.
         The data block contains the table row data one line at a time. Each row is represented as a single list index,
             where a dictionary maps the key (column) to the value.
     JMP Files also start with 16 bytes that are useful to explain the rest of the structure of the file.

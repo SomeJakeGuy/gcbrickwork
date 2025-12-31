@@ -36,6 +36,7 @@ The structure of these files break down in the following way:
 
 ### Jump / JMP
 These types of files typically table-like structures that are loaded into RAM during run-time.
+These files are similar to modern day data-tables.
 * JMP Files contain a giant header block and data entry block.
   * The header block contains the definition of all field headers (columns) and field level data. Loads the first 16 bytes to determine (in order):
     * How many data entries there are
@@ -50,6 +51,7 @@ These types of files typically table-like structures that are loaded into RAM du
         * The next 2 bytes represent the starting byte for the field within a given data line in the JMP file.
         * The second to last byte represents the shift bytes, which is required when reading certain field data.
         * The last byte represents the data type, as defined as either Int, Str, or Floats.
+      * Order of the JMPFileHeaders does not matter in JMP files, as long as all fields used are defined.
   * The data block contains the table row data one line at a time.
     * Each row is represented by multiple columns of data, each of which should match to a JMP field header and its respective value type (Int, Str, Float, etc.)
   * It should be noted that there will be extra bytes typically at the end of a jmp file, which are padded with "@".
