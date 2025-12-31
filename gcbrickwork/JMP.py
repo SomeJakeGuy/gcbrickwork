@@ -152,6 +152,22 @@ class JMP:
             data_entry[jmp_field] = default_val
 
 
+    def delete_jmp_header(self, field_key: str | int | JMPFieldHeader):
+        if isinstance(field_key, str) or isinstance(field_key, int):
+            field = self.find_field(field_key)
+        elif isinstance(field_key, JMPFieldHeader):
+            field = field_key
+        else:
+            raise ValueError(f"Cannot index JMPEntry with value of type {type(field_key)}")
+
+        if field is None:
+            return
+
+        self._fields.remove(field)
+        for data_entry in self.data_entries:
+            del data_entry[field]
+
+
     def map_hash_to_name(self, field_names: dict[int, str]):
         """
         Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
