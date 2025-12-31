@@ -142,10 +142,12 @@ class JMP:
     def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
         """Adds a new JMPFieldHeader and a default value to all existing data entries."""
         if not jmp_field.field_start_byte % 4 == 0:
-            raise JMPFileError("JMPFieldHeader start bytes must be divisible by 4")
+            raise JMPFileError("JMPFieldHeader start bytes must be divisible by '4'.")
+
+        if jmp_field in self._fields:
+            raise JMPFileError("JMPFieldHeader provided already exists as a field.")
 
         self._fields.append(jmp_field)
-
         for data_entry in self.data_entries:
             data_entry[jmp_field] = default_val
 
