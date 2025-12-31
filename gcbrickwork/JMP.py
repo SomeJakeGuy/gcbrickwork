@@ -102,7 +102,7 @@ class JMPFieldHeader:
 
 
     def __hash__(self):
-        return self.field_hash
+        return id(self)
 
 
     def __eq__(self, other):
