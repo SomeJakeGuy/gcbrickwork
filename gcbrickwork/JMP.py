@@ -105,6 +105,10 @@ class JMPFieldHeader:
         return self.field_hash
 
 
+    def __eq__(self, other):
+        return self is other
+
+
 class JMP:
     """
     JMP Files are table-structured format files that contain a giant header block and data entry block.
