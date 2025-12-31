@@ -407,9 +407,10 @@ def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header
     """
     Loads all the rows one by one and populates each column's value per row.
     """
-    _data_entries: list[JMPEntry] = []
+    data_entries: list[JMPEntry] = []
 
     for current_entry in range(entry_count):
+        val_to_use: JMPValue | None = None
         new_entry: JMPEntry = JMPEntry()
         data_entry_start: int = (current_entry * entry_size) + header_size
 
@@ -417,15 +418,17 @@ def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header
             match jmp_header.field_data_type:
                 case JMPType.Int:
                     current_val: int = read_u32(entry_data, data_entry_start + jmp_header.field_start_byte)
-                    new_entry[jmp_header] = (current_val & jmp_header.field_bitmask) >> jmp_header.field_shift_byte
+                    val_to_use = (current_val & jmp_header.field_bitmask) >> jmp_header.field_shift_byte
                 case JMPType.Str:
-                    new_entry[jmp_header] = read_str_until_null_character(entry_data,
+                    val_to_use = read_str_until_null_character(entry_data,
                         data_entry_start + jmp_header.field_start_byte, JMP_STRING_BYTE_LENGTH)
                 case JMPType.Flt:
-                    new_entry[jmp_header] = read_float(entry_data, data_entry_start + jmp_header.field_start_byte)
-        _data_entries.append(new_entry)
+                    val_to_use = read_float(entry_data, data_entry_start + jmp_header.field_start_byte)
 
-    return _data_entries
+            new_entry[jmp_header] = val_to_use
+        data_entries.append(new_entry)
+
+    return data_entries
 
 
 def _get_field_size(field_type: JMPType) -> int:
