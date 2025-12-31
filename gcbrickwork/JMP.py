@@ -109,6 +109,31 @@ class JMPFieldHeader:
         return self is other
 
 
+    def validate_header(self):
+        if not isinstance(self.field_hash, int):
+            raise JMPFileError("JMPFieldHeader Field Hash must be of type integer.")
+        elif not (0 <= self.field_hash <= 2**32 - 1):
+            raise JMPFileError(f"JMPFieldHeader Field Hash must be between 0 and '{str(2**32 - 1)}'")
+
+        if not isinstance(self.field_bitmask, int):
+            raise JMPFileError("JMPFieldHeader Field BitMask must be of type integer.")
+        elif not (0 <= self.field_bitmask <= 2**32-1):
+            raise JMPFileError(f"JMPFieldHeader Field BitMask must be between 0 and '{str(2**32-1)}'")
+
+        if not isinstance(self.field_start_byte, int):
+            raise JMPFileError("JMPFieldHeader Start Byte must be of type integer.")
+        elif not self.field_start_byte % 4 == 0:
+            raise JMPFileError("JMPFieldHeader Start Byte must be divisible by '4'.")
+        elif not (0 <= self.field_start_byte <= 2**16 - 1):
+            raise JMPFileError(f"JMPFieldHeader Start Byte must be between 0 and '{str(2**16 - 1)}'")
+
+        if not isinstance(self.field_shift_byte, int):
+            raise JMPFileError("JMPFieldHeader Shift Byte must be of type integer.")
+        elif not (0 <= self.field_shift_byte <= 2**8 - 1):
+            raise JMPFileError(f"JMPFieldHeader Shift Byte must be between 0 and '{str(2**8 - 1)}'")
+
+
+
 class JMP:
     """
     JMP Files are table-structured format files that contain a giant header block and data entry block.
@@ -121,7 +146,7 @@ class JMP:
     _fields: list[JMPFieldHeader] = []
 
 
-    def __init__(self, data_entries: list[JMPEntry]):
+    def __init__(self, fields: list[JMPFieldHeader], data_entries: list[JMPEntry]):
         if not self._validate_all_entries():
             raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
                 "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
@@ -133,6 +158,19 @@ class JMP:
             self._update_list_of_headers()
 
 
+    def validate_jmp_fields(self, jmp_fields: list[JMPFieldHeader]):
+        """Validates that the list of JMPFieldHeaders have correct information and confirms no duplicates are found."""
+        field_hashes: list[int] = []
+        if jmp_fields is None or len(jmp_fields) == 0:
+            jmp_fields = self._fields
+
+        for j_field in jmp_fields:
+            if j_field.field_hash in field_hashes:
+                raise JMPFileError(f"JMPFieldHeader with hash '{str(j_field.field_hash)}' already exists in JMPFieldHeaderList.")
+            j_field.validate_header()
+            field_hashes.append(j_field.field_hash)
+
+
     @property
     def fields(self) -> list[JMPFieldHeader]:
         """Returns the list of JMP Field Headers that are defined in this file."""
@@ -141,11 +179,9 @@ class JMP:
 
     def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
         """Adds a new JMPFieldHeader and a default value to all existing data entries."""
-        if not jmp_field.field_start_byte % 4 == 0:
-            raise JMPFileError("JMPFieldHeader start bytes must be divisible by '4'.")
-
-        if jmp_field in self._fields:
-            raise JMPFileError("JMPFieldHeader provided already exists as a field.")
+        jmp_field.validate_header()
+        if jmp_field in self._fields or jmp_field.field_hash in [f.field_hash for f in self._fields]:
+            raise JMPFileError(f"JMPFieldHeader with hash '{str(jmp_field.field_hash)}' already exists in JMPFieldHeaderList.")
 
         self._fields.append(jmp_field)
         for data_entry in self._data_entries:
