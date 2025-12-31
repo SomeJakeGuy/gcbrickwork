@@ -147,24 +147,16 @@ class JMP:
 
 
     def __init__(self, fields: list[JMPFieldHeader], data_entries: list[JMPEntry]):
-        if not self._validate_all_entries():
-            raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
-                "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
-
+        self._fields = fields
+        self.validate_jmp_fields()
         self._data_entries = data_entries
-        if data_entries is None or len(data_entries) == 0:
-            self._fields = []
-        else:
-            self._update_list_of_headers()
+        self.validate_all_jmp_entries()
 
 
-    def validate_jmp_fields(self, jmp_fields: list[JMPFieldHeader]):
+    def validate_jmp_fields(self):
         """Validates that the list of JMPFieldHeaders have correct information and confirms no duplicates are found."""
         field_hashes: list[int] = []
-        if jmp_fields is None or len(jmp_fields) == 0:
-            jmp_fields = self._fields
-
-        for j_field in jmp_fields:
+        for j_field in self._fields:
             if j_field.field_hash in field_hashes:
                 raise JMPFileError(f"JMPFieldHeader with hash '{str(j_field.field_hash)}' already exists in JMPFieldHeaderList.")
             j_field.validate_header()
@@ -325,7 +317,7 @@ class JMP:
                 "expected and could not be parsed properly.")
         entries = _load_entries(jmp_data, data_entry_count, single_entry_size, header_block_size, fields)
 
-        return cls(entries)
+        return cls(fields, entries)
 
 
     def create_new_jmp(self) -> BytesIO:
@@ -333,9 +325,8 @@ class JMP:
         Create a new the file from the fields / _data_entries, as new entries / headers could have been added. Keeping the
         original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
         """
-        if not self._validate_all_entries():
-            raise JMPFileError("One or more data_entry's have either extra JMPFieldHeaders or less.\n" +
-                "Each data_entry should share the exact same number of JMPFieldHeaders, even if they are 0/empty.")
+        self.validate_jmp_fields()
+        self.validate_all_jmp_entries()
 
         self._update_list_of_headers()
 
@@ -407,17 +398,15 @@ class JMP:
         return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
 
 
-    def _validate_all_entries(self) -> bool:
+    def validate_all_jmp_entries(self):
         """
         Validates all entries have the same JMPFieldHeaders. All of them must have a value, even if its 0.
         If a data_entry defines a field that is not shared by the others, it will cause parsing errors later.
         """
         if self._data_entries is None or len(self._data_entries) == 0:
-            return True
-        headers_list: list[list[JMPFieldHeader]] = []
-        for entry in self._data_entries:
-            headers_list.append(sorted(list(entry.keys()), key=lambda j_field: j_field.field_start_byte))
-        return all(sublist == headers_list[0] for sublist in headers_list)
+            return
+        for jmp_entry in self._data_entries:
+            self.validate_jmp_entry(jmp_entry)
 
 
 def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader]:
