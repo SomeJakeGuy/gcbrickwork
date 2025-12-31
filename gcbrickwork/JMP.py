@@ -153,6 +153,8 @@ class JMP:
 
 
     def delete_jmp_header(self, field_key: str | int | JMPFieldHeader):
+        """Deletes a JMPFieldHeader based on the provided field name, hash, or field itself.
+        Automatically removes the field from all data entries as well, to avoid issues later on."""
         if isinstance(field_key, str) or isinstance(field_key, int):
             field = self.find_jmp_header(field_key)
         elif isinstance(field_key, JMPFieldHeader):
