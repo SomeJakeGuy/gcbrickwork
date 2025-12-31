@@ -170,12 +170,6 @@ class JMP:
             del data_entry[field]
 
 
-    @property
-    def data_entries(self) -> list[JMPEntry]:
-        """Returns the list of JMPEntry (rows) that are defined in this file."""
-        return self._data_entries
-
-
     def map_hash_to_name(self, field_names: dict[int, str]):
         """
         Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
@@ -195,6 +189,24 @@ class JMP:
             return next((j_field for j_field in self._fields if j_field.field_hash == field_key), None)
         else:
             raise ValueError(f"Cannot index JMPEntry with value of type {type(field_key)}")
+
+
+    @property
+    def data_entries(self) -> list[JMPEntry]:
+        """Returns the list of JMPEntry (rows) that are defined in this file."""
+        return self._data_entries
+
+
+    def delete_jmp_entry(self, jmp_entry: int | JMPEntry):
+        """Deletes a JMPEntry by either the Entry itself or the index number."""
+        if isinstance(jmp_entry, int):
+            entry: JMPEntry = self._data_entries[jmp_entry]
+        elif isinstance(jmp_entry, JMPEntry):
+            entry: JMPEntry = jmp_entry
+        else:
+            raise ValueError(f"Cannot index JMPEntry with value of type {type(jmp_entry)}")
+
+        self._data_entries.remove(entry)
 
 
     @classmethod
