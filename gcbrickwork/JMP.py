@@ -37,7 +37,7 @@ class JMPEntry(dict["JMPFieldHeader", JMPValue]):
             raise ValueError(f"Cannot index JMPEntry with value of type {type(key)}")
 
         if field is None:
-            raise KeyError(f"No JMPHeaderField was found with name/hash '{key}'")
+            raise KeyError(f"No JMPHeaderField was found with name/hash '{str(key)}'")
         return super().__getitem__(field)
 
 
@@ -53,7 +53,7 @@ class JMPEntry(dict["JMPFieldHeader", JMPValue]):
             raise ValueError(f"Cannot index JMPEntry with value of type {type(key)}")
 
         if field is None:
-            raise KeyError(f"No JMPHeaderField was found with name/hash '{key}'")
+            raise KeyError(f"No JMPHeaderField was found with name/hash '{str(key)}'")
         super().__setitem__(field, value)
 
 
