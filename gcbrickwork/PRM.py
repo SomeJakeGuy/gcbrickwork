@@ -89,6 +89,10 @@ class PRMFieldEntry:
 
 
 class PRM:
+    """ PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
+        These files typically host values that would change frequently and are read by the program at run-time.
+        PRM Files start with 4 bytes as an unsigned int to tell how many parameters are defined.
+        The structure of the entries can be found in PRMFieldEntry. """
     data_entries: list[PRMFieldEntry] = []
 
 
@@ -98,12 +102,9 @@ class PRM:
 
     @classmethod
     def load_prm(cls, prm_data: BytesIO):
+        """ Loads the various prm values from the file into a list of PRMFieldEntries
         """
-        PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
-        These files typically host values that would change frequently and are read by the program at run-time.
-        PRM Files start with 4 bytes as an unsigned int to tell how many parameters are defined.
-        The structure of the entries can be found in PRMFieldEntry
-        """
+        entry_value: PRMValue | None = None
         prm_entries: list[PRMFieldEntry] = []
         current_offset: int = 0
         num_of_entries: int = read_u32(prm_data, 0)
