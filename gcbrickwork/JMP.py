@@ -155,20 +155,19 @@ class JMP:
         Using the user provided dictionary, maps out the field hash to their designated name, making it easier to query.
         """
         for key, val in field_names.items():
-            jmp_field: JMPFieldHeader = self._find_field_by_hash(key)
+            jmp_field: JMPFieldHeader = self.find_field(key)
             if jmp_field is None:
                 continue
             jmp_field.field_name = val
 
 
-    def _find_field_by_hash(self, jmp_field_hash: int) -> JMPFieldHeader | None:
-        """Finds a specific JMP field by its hash value. Can return None as well if no field found."""
-        return next((j_field for j_field in self._fields if j_field.field_hash == jmp_field_hash), None)
-
-
-    def _find_field_by_name(self, jmp_field_name: str) -> JMPFieldHeader | None:
-        """Finds a specific JMP field by its field name. Can return None as well if no field found."""
-        return next((j_field for j_field in self._fields if j_field.field_name == jmp_field_name), None)
+    def find_field(self, field_key: str | int) -> JMPFieldHeader | None:
+        if isinstance(field_key, str):
+            return next((j_field for j_field in self._fields if j_field.field_name == field_key), None)
+        elif isinstance(field_key, int):
+            return next((j_field for j_field in self._fields if j_field.field_hash == field_key), None)
+        else:
+            raise ValueError(f"Cannot index JMPEntry with value of type {type(field_key)}")
 
 
     @classmethod
@@ -227,7 +226,7 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        jmp_field: JMPFieldHeader = self._find_field_by_name(field_name)
+        jmp_field: JMPFieldHeader = self.find_field(field_name)
         if jmp_field is None:
             raise JMPFileError(f"No JMP field with name '{field_name}' was found in the provided entry.")
 
@@ -243,7 +242,7 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        jmp_field: JMPFieldHeader = self._find_field_by_hash(field_hash)
+        jmp_field: JMPFieldHeader = self.find_field(field_hash)
         if jmp_field is None:
             raise JMPFileError(f"No JMP field with hash '{str(field_hash)}' was found in the provided entry.")
 
@@ -259,7 +258,7 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        jmp_field = self._find_field_by_name(field_name)
+        jmp_field = self.find_field(field_name)
         jmp_entry[jmp_field] = field_value
 
 
@@ -268,7 +267,7 @@ class JMP:
         if not jmp_entry in self.data_entries:
             raise JMPFileError("Provided entry does not exist in the current list of JMP data entries.")
 
-        jmp_field = self._find_field_by_hash(field_hash)
+        jmp_field = self.find_field(field_hash)
         jmp_entry[jmp_field] = field_value
 
 
