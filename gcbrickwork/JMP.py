@@ -197,6 +197,11 @@ class JMP:
         return self._data_entries
 
 
+    def clear_data_entries(self):
+        """Resets data_entries into an empty list (no rows defined)"""
+        self._data_entries = []
+
+
     def delete_jmp_entry(self, jmp_entry: int | JMPEntry):
         """Deletes a JMPEntry by either the Entry itself or the index number."""
         if isinstance(jmp_entry, int):
