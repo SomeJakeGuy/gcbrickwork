@@ -257,6 +257,8 @@ class JMP:
                     if jmp_field is None:
                         invalid_fields.append(f"'{str(key)}' {"(name)" if isinstance(key, str) else "(hash)"}")
                         continue
+                    entry_to_use[jmp_field] = val
+                    continue
 
                 entry_to_use[key] = val
             else:
