@@ -253,8 +253,10 @@ class JMP:
                 entry_to_use[jmp_field] = val
             elif isinstance(key, JMPFieldHeader):
                 if not key in self._fields:
-                    invalid_fields.append(f"(JMPFieldHeader) Name: '{key.field_name}'; Hash: '{str(key.field_hash)}'")
-                    continue
+                    jmp_field: JMPFieldHeader = self.find_jmp_header(key.field_hash)
+                    if jmp_field is None:
+                        invalid_fields.append(f"'{str(key)}' {"(name)" if isinstance(key, str) else "(hash)"}")
+                        continue
 
                 entry_to_use[key] = val
             else:
