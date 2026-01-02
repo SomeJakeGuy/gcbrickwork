@@ -89,6 +89,10 @@ class PRMFieldEntry:
 
 
 class PRM:
+    """ PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
+        These files typically host values that would change frequently and are read by the program at run-time.
+        PRM Files start with 4 bytes as an unsigned int to tell how many parameters are defined.
+        The structure of the entries can be found in PRMFieldEntry. """
     data_entries: list[PRMFieldEntry] = []
 
 
@@ -98,12 +102,9 @@ class PRM:
 
     @classmethod
     def load_prm(cls, prm_data: BytesIO):
+        """ Loads the various prm values from the file into a list of PRMFieldEntries
         """
-        PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
-        These files typically host values that would change frequently and are read by the program at run-time.
-        PRM Files start with 4 bytes as an unsigned int to tell how many parameters are defined.
-        The structure of the entries can be found in PRMFieldEntry
-        """
+        entry_value: PRMValue | None = None
         prm_entries: list[PRMFieldEntry] = []
         current_offset: int = 0
         num_of_entries: int = read_u32(prm_data, 0)
@@ -179,5 +180,17 @@ class PRM:
         return local_data
 
 
-    def get_entry(self, field_name: str) -> PRMFieldEntry:
-        return next(entry for entry in self.data_entries if entry.field_name == field_name)
+    def get_prm_entry(self, prm_field: str | int) -> PRMFieldEntry:
+        """Gets a PRMFieldEntry based on a provided field name/hash."""
+        if isinstance(prm_field, str):
+            return next(prm_entry for prm_entry in self.data_entries if prm_entry.field_name == prm_field)
+        elif isinstance(prm_field, int):
+            return next(prm_entry for prm_entry in self.data_entries if prm_entry.field_hash == prm_field)
+        else:
+            raise ValueError(f"Cannot index PRMFieldEntry with value of type {type(prm_field)}")
+
+
+    def update_prm_entry(self, prm_field: str | int, prm_value: PRMValue):
+        """Updates a PRMFieldEntry based on a provided field/value."""
+        prm_entry: PRMFieldEntry = self.get_prm_entry(prm_field)
+        prm_entry.field_value = prm_value
