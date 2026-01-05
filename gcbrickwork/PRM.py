@@ -167,13 +167,29 @@ class PRM:
                 case PRMType.Short:
                     write_u16(local_data, current_offset, prm_entry.field_value)
                 case PRMType.Number:
-                    write_u32(local_data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
+                    if isinstance(prm_entry.field_value, float):
+                        write_float(local_data, current_offset, prm_entry.field_value)
+                    elif isinstance(prm_entry.field_value, int):
+                        write_u32(local_data, current_offset, prm_entry.field_value)
+                    elif isinstance(prm_entry.field_value, bytes):
+                        if len(prm_entry.field_value) > 4:
+                            raise ValueError(f"PRM field '{prm_entry.field_name}' can only have up to '4' bytes.")
+                        elif len(prm_entry.field_value) < 4:
+                            prm_entry.field_value = (b"\0" * (4 - len(prm_entry.field_value))) + prm_entry.field_value
+                        local_data.seek(current_offset)
+                        local_data.write(prm_entry.field_value)
+                    else:
+                        raise ValueError(f"Unexpected PRM Number value of type {type(prm_entry.field_value)}")
                 case PRMType.Vector:
+                    if not isinstance(prm_entry.field_value, PRMVector):
+                        raise ValueError(f"Unexpected PRMVector value of type {type(prm_entry.field_value)}")
                     val: PRMVector = prm_entry.field_value
                     write_float(local_data, current_offset, val.float_one)
                     write_float(local_data, current_offset + 4, val.float_two)
                     write_float(local_data, current_offset + 8, val.float_three)
                 case PRMType.Color:
+                    if not isinstance(prm_entry.field_value, PRMColor):
+                        raise ValueError(f"Unexpected PRMColor value of type {type(prm_entry.field_value)}")
                     val: PRMColor = prm_entry.field_value
                     write_u32(local_data, current_offset, val.red_value)
                     write_u32(local_data, current_offset + 4, val.green_value)
