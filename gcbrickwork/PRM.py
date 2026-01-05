@@ -158,6 +158,9 @@ class PRM:
             write_u16(local_data, current_offset + 2, len(prm_entry.field_name))
             write_str(local_data, current_offset + 4, prm_entry.field_name, len(prm_entry.field_name))
             current_offset += len(prm_entry.field_name) + 4
+
+            write_u32(local_data, current_offset, prm_entry.field_type)
+            current_offset += 4
             match prm_entry.field_type:
                 case PRMType.Byte:
                     write_u8(local_data, current_offset, int.from_bytes(prm_entry.field_value, "big"))
@@ -176,7 +179,7 @@ class PRM:
                     write_u32(local_data, current_offset + 4, val.green_value)
                     write_u32(local_data, current_offset + 8, val.blue_value)
                     write_u32(local_data, current_offset + 12, val.opacity)
-            current_offset+=prm_entry.field_type
+            current_offset += prm_entry.field_type
 
         return local_data
 
