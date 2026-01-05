@@ -98,7 +98,7 @@ def read_str_until_null_character(data: BytesIO, offset: int, max_length: int) -
 def write_str(data: BytesIO, offset: int, new_string: str, max_length: int, padding_byte: bytes = b"\0"):
     encoded_string = new_string.encode(GC_ENCODING_STR)
     str_len = len(encoded_string)
-    if str_len >= max_length:
+    if str_len > max_length:
         raise ByteHelperError(f"String \"{new_string}\" is too long (max length: {str(max_length)})")
 
     padding_length = max_length - str_len
