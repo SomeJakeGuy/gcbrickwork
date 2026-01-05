@@ -117,6 +117,7 @@ class PRM:
             current_offset += entry_name_length + 4
 
             entry_size: int = read_u32(prm_data, current_offset)
+            current_offset += 4
             match entry_size:
                 case PRMType.Byte | PRMType.Number:
                     entry_value: bytes = prm_data.read(entry_size)
