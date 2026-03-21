@@ -18,7 +18,7 @@ class PRMType(IntEnum):
 
 @dataclass
 class PRMColor:
-    """C/C++ Clr (color) object representation"""
+    """C/C++ Clr (color) object representation."""
     red_value: int = 0
     green_value: int = 0
     blue_value: int = 0
@@ -33,12 +33,12 @@ class PRMColor:
 
 
     def __str__(self):
-        return (f"Red Val: 0x{hex(self.red_value)}; Green Val: 0x{hex(self.green_value)}; " +
-                f"Blue Val: 0x{hex(self.blue_value)}; Opacity Val: 0x{hex(self.green_value)}")
+        return (f"Red: 0x{hex(self.red_value)}; Green: 0x{hex(self.green_value)}; " +
+            f"Blue: 0x{hex(self.blue_value)}; Opacity: 0x{hex(self.green_value)}")
 
 
     def __len__(self):
-        return 16
+        return 4 * 4 # Unsigned ints are 4 bytes each and there are 4 of them to make up a color.
 
 
 @dataclass
@@ -56,7 +56,7 @@ class PRMVector:
 
 
     def __len__(self):
-        return 12
+        return 3 * 4 # Floats are 4 bytes each and there are 3 of them in a PRMVector
 
 
 @dataclass
@@ -89,10 +89,12 @@ class PRMFieldEntry:
 
 
 class PRM:
-    """ PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
+    """
+    PRM Files are parameterized files that have one or more parameters that can be changed/manipulated.
         These files typically host values that would change frequently and are read by the program at run-time.
         PRM Files start with 4 bytes as an unsigned int to tell how many parameters are defined.
-        The structure of the entries can be found in PRMFieldEntry. """
+        The structure of the entries can be found in PRMFieldEntry.
+    """
     data_entries: list[PRMFieldEntry] = []
 
 
@@ -102,8 +104,7 @@ class PRM:
 
     @classmethod
     def load_prm(cls, prm_data: BytesIO):
-        """ Loads the various prm values from the file into a list of PRMFieldEntries
-        """
+        """Loads the various prm values from the file into a list of PRMFieldEntries."""
         entry_value: PRMValue | None = None
         prm_entries: list[PRMFieldEntry] = []
         current_offset: int = 0
@@ -146,7 +147,7 @@ class PRM:
         """
         Using the provided fields and values, re-create the file in the data structure described in load_prm, which
             at a high level requires the first four bytes to be the number of PRM fields, then the PRM fields/data.
-        It should be noted that there is NO padding at the end of these files.
+            It should be noted that there is NO padding at the end of these files.
         """
         current_offset: int = 0
         local_data = io.BytesIO()
