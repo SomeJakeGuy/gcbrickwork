@@ -5,9 +5,10 @@ from enum import IntEnum
 from .Bytes_Helper import *
 
 JMP_HEADER_SIZE: int = 12
-JMP_STRING_BYTE_LENGTH = 32
+JMP_STRING_BYTE_LENGTH: int = 32
 
 type JMPValue = int | str | float
+type JMPKey = int | str | JMPFieldHeader
 
 
 class JMPEntry(dict["JMPFieldHeader", JMPValue]):
@@ -15,7 +16,7 @@ class JMPEntry(dict["JMPFieldHeader", JMPValue]):
     A JMP entry (row) that allows accessing fields by string name or JMPFieldHeader.
     This is a simple wrapper around a dict to allow getting values by string instead of having to use JMPFieldHeaders.
     """
-    def _find_entry_field(self, jmp_field: "int | str | JMPFieldHeader") -> "JMPFieldHeader":
+    def _find_entry_field(self, jmp_field: JMPKey) -> "JMPFieldHeader":
         """Finds a specific JMP field by its hash value or field name. Can return None as well if no field found."""
         if isinstance(jmp_field, str):
             field: JMPFieldHeader = next((field for field in self.keys() if field.field_name == jmp_field), None)
@@ -31,12 +32,12 @@ class JMPEntry(dict["JMPFieldHeader", JMPValue]):
         return field
 
 
-    def __getitem__(self, key: "str | int | JMPFieldHeader") -> JMPValue:
+    def __getitem__(self, key: JMPKey) -> JMPValue:
         """Gets a specific JMPHeaderField by its name, hash, or field directly."""
         return super().__getitem__(self._find_entry_field(key))
 
 
-    def __setitem__(self, key: "str | int | JMPFieldHeader", value: JMPValue):
+    def __setitem__(self, key: JMPKey, value: JMPValue):
         """Updates a specific JMPHeaderField by its name, hash, or field directly to the provided value."""
         super().__setitem__(self._find_entry_field(key), value)
 
@@ -57,12 +58,12 @@ class JMPType(IntEnum):
 class JMPFieldHeader:
     """
     JMP File Headers are comprised of 12 bytes in total.
-    The first 4 bytes represent the field's hash. Currently, it is un-known how a field's name becomes a hash.
+    The first 4 bytes represent the field's hash. Currently, it is unknown how a field's name becomes a hash.
         There may be specific games that have created associations from field hash -> field internal name.
-    The second 4 bytes represent the field's bitmask
+    The second 4 bytes represent the field's bitmask.
     The next 2 bytes represent the starting byte for the field within a given data line in the JMP file.
     The second to last byte represents the shift bytes, which is required when reading certain field data.
-    The last byte represents the data type, see JMPType for value -> type conversion
+    The last byte represents the data type, see JMPType for value -> type conversion.
     """
     field_hash: int = 0
     field_name: str = None
@@ -96,25 +97,25 @@ class JMPFieldHeader:
     def validate_header(self):
         if not isinstance(self.field_hash, int):
             raise JMPFileError("JMPFieldHeader Field Hash must be of type integer.")
-        elif not (0 <= self.field_hash <= 2**32 - 1):
-            raise JMPFileError(f"JMPFieldHeader Field Hash must be between 0 and '{str(2**32 - 1)}'")
+        elif not (0 <= self.field_hash <= 2 ** 32 - 1):
+            raise JMPFileError(f"JMPFieldHeader Field Hash must be between 0 and '{str(2 ** 32 - 1)}'")
 
         if not isinstance(self.field_bitmask, int):
             raise JMPFileError("JMPFieldHeader Field BitMask must be of type integer.")
-        elif not (0 <= self.field_bitmask <= 2**32-1):
-            raise JMPFileError(f"JMPFieldHeader Field BitMask must be between 0 and '{str(2**32-1)}'")
+        elif not (0 <= self.field_bitmask <= 2 ** 32-1):
+            raise JMPFileError(f"JMPFieldHeader Field BitMask must be between 0 and '{str(2 ** 32-1)}'")
 
         if not isinstance(self.field_start_byte, int):
             raise JMPFileError("JMPFieldHeader Start Byte must be of type integer.")
         elif not self.field_start_byte % 4 == 0:
             raise JMPFileError("JMPFieldHeader Start Byte must be divisible by '4'.")
-        elif not (0 <= self.field_start_byte <= 2**16 - 1):
-            raise JMPFileError(f"JMPFieldHeader Start Byte must be between 0 and '{str(2**16 - 1)}'")
+        elif not (0 <= self.field_start_byte <= 2 ** 16 - 1):
+            raise JMPFileError(f"JMPFieldHeader Start Byte must be between 0 and '{str(2** 16 - 1)}'")
 
         if not isinstance(self.field_shift_byte, int):
             raise JMPFileError("JMPFieldHeader Shift Byte must be of type integer.")
-        elif not (0 <= self.field_shift_byte <= 2**8 - 1):
-            raise JMPFileError(f"JMPFieldHeader Shift Byte must be between 0 and '{str(2**8 - 1)}'")
+        elif not (0 <= self.field_shift_byte <= 2 ** 8 - 1):
+            raise JMPFileError(f"JMPFieldHeader Shift Byte must be between 0 and '{str(2 ** 8 - 1)}'")
 
 
 
@@ -158,7 +159,7 @@ class JMP:
     def add_jmp_header(self, jmp_field: JMPFieldHeader, default_val: JMPValue):
         """Adds a new JMPFieldHeader and a default value to all existing data entries."""
         jmp_field.validate_header()
-        if jmp_field in self._fields or jmp_field.field_hash in [f.field_hash for f in self._fields]:
+        if jmp_field.field_hash in [f.field_hash for f in self._fields]:
             raise JMPFileError(f"JMPFieldHeader with hash '{str(jmp_field.field_hash)}' already exists in JMPFieldHeaderList.")
 
         self._fields.append(jmp_field)
@@ -166,9 +167,11 @@ class JMP:
             data_entry[jmp_field] = default_val
 
 
-    def delete_jmp_header(self, field_key: str | int | JMPFieldHeader):
-        """Deletes a JMPFieldHeader based on the provided field name, hash, or field itself.
-        Automatically removes the field from all data entries as well, to avoid issues later on."""
+    def delete_jmp_header(self, field_key: JMPKey):
+        """
+        Deletes a JMPFieldHeader based on the provided field name, hash, or field itself.
+        Automatically removes the field from all data entries as well, to avoid issues later on.
+        """
         if isinstance(field_key, str) or isinstance(field_key, int):
             field = self.find_jmp_header(field_key)
         elif isinstance(field_key, JMPFieldHeader):
@@ -239,8 +242,10 @@ class JMP:
 
 
     def validate_jmp_entry(self, entry_data: dict[str | int, JMPValue] | JMPEntry) -> JMPEntry:
-        """Validates the current JMPEntry does not have invalid fields, missing required fields, and correct values.
-        If a required field (which is a field defined in the self.fields), a JMPFIleError is thrown."""
+        """
+        Validates the current JMPEntry does not have invalid fields, missing required fields, and correct values.
+        If a required field (which is a field defined in the self.fields), a JMPFIleError is thrown.
+        """
         entry_to_use: JMPEntry = JMPEntry()
         invalid_fields: list[str] = []
         for key, val in entry_data.items():
@@ -315,9 +320,6 @@ class JMP:
         Create a new the file from the fields / _data_entries, as new entries / headers could have been added.
         Keeping the original structure of: Important 16 header bytes, Header Block, and then the Data entries block.
         """
-        self.validate_jmp_fields()
-        self.validate_all_jmp_entries()
-
         local_data: BytesIO = BytesIO()
         single_entry_size: int = self._calculate_entry_size()
         new_header_size: int = len(self._fields) * JMP_HEADER_SIZE + 16
@@ -338,7 +340,8 @@ class JMP:
 
 
     def _update_headers(self, local_data: BytesIO) -> int:
-        """ Add the individual headers to complete the header block """
+        """Add the individual headers to complete the header block."""
+        self.validate_jmp_fields()
         current_offset: int = 16
         for jmp_header in self._fields:
             write_u32(local_data, current_offset, jmp_header.field_hash)
@@ -352,8 +355,11 @@ class JMP:
 
 
     def _update_entries(self, local_data: BytesIO, current_offset: int, entry_size: int):
-        """ Add the all the data entry lines. Integers with bitmask 0xFFFFFFFF will write their values directly,
-        while other integers will need to shift/mask their values accordingly."""
+        """
+        Add the all the data entry lines. Integers with bitmask 0xFFFFFFFF will write their values directly,
+        while other integers will need to shift/mask their values accordingly.
+        """
+        self.validate_all_jmp_entries()
         for line_entry in self._data_entries:
             for key, val in line_entry.items():
                 match key.field_data_type:
@@ -376,9 +382,9 @@ class JMP:
 
     def _calculate_entry_size(self) -> int:
         """Gets a deepy copy of the JMP header list to avoid messing with the actual order of fields."""
-        jmp_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
-        sorted_jmp_fields = sorted(jmp_fields, key=lambda jmp_field: jmp_field.field_start_byte, reverse=True)
-        return sorted_jmp_fields[0].field_start_byte + _get_field_size(JMPType(sorted_jmp_fields[0].field_data_type))
+        j_fields: list[JMPFieldHeader] = copy.deepcopy(self._fields)
+        highest_field: JMPFieldHeader = sorted(j_fields, key=lambda j_field: j_field.field_start_byte, reverse=True)[0]
+        return highest_field.field_start_byte + _get_field_size(JMPType(highest_field.field_data_type))
 
 
     def validate_all_jmp_entries(self):
@@ -412,9 +418,7 @@ def _load_headers(header_data: BytesIO, field_count: int) -> list[JMPFieldHeader
 
 def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header_size: int,
     field_list: list[JMPFieldHeader]) -> list[JMPEntry]:
-    """
-    Loads all the rows one by one and populates each column's value per row.
-    """
+    """Loads all the rows one by one and populates each column's value per row."""
     data_entries: list[JMPEntry] = []
 
     for current_entry in range(entry_count):
@@ -442,6 +446,6 @@ def _load_entries(entry_data: BytesIO, entry_count: int, entry_size: int, header
 def _get_field_size(field_type: JMPType) -> int:
     match field_type:
         case JMPType.Int | JMPType.Flt:
-            return 4
+            return 4 # Integers and floats are 4 bytes
         case JMPType.Str:
-            return 32
+            return 32 # Strings can be up to 32 bytes
