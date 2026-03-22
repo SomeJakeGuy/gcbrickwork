@@ -2,9 +2,8 @@ import pytest, struct
 from io import BytesIO
 from sys import exception
 
-from gcbrickwork import JMP
 from gcbrickwork.Bytes_Helper import ByteHelperError
-from gcbrickwork.JMP import JMPFileError
+from gcbrickwork.JMP import JMP, JMPFileError
 
 
 def _jmp_sixteen_header(field_count: int=0, entry_count: int=0, header_size: int=0, entry_size: int=0) -> BytesIO:
