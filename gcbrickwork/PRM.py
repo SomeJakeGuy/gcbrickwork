@@ -2,7 +2,7 @@ import io
 from dataclasses import dataclass
 from enum import IntEnum
 
-from .Bytes_Helper import *
+from gcbrickwork.Bytes_Helper import *
 
 
 type PRMValue = bytes | int | PRMColor | PRMVector
