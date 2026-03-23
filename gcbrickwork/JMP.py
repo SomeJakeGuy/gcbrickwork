@@ -308,7 +308,7 @@ class JMP:
 
         # Load all data entries / rows of this table.
         if header_block_size + (single_entry_size * data_entry_count) > original_file_size:
-            raise JMPFileError("When trying to read the date entries block of the JMP file, the size was bigger than " +
+            raise JMPFileError("When trying to read the data entries block of the JMP file, the size was bigger than " +
                 "expected and could not be parsed properly.")
         entries = _load_entries(jmp_data, data_entry_count, single_entry_size, header_block_size, fields)
 
